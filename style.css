@@ -197,6 +197,53 @@ textarea {
   font-family: inherit;
   resize: vertical;
 }
+
+.shopping-output {
+  width: 100%;
+  min-height: 220px;
+  max-height: min(520px, 55vh);
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 35%, var(--card));
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-overflow-scrolling: touch;
+}
+.shopping-output:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
+.shopping-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.shopping-title + .shopping-cat {
+  margin-top: 2px;
+}
+.shopping-cat {
+  margin-top: 14px;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.shopping-cat strong {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+}
+.shopping-line {
+  padding: 2px 0 2px 4px;
+  word-break: break-word;
+}
+.shopping-empty {
+  color: var(--muted);
+}
+
 .btn {
   background: var(--accent);
   border: none;
@@ -226,6 +273,8 @@ textarea {
   margin: 6px 0 0;
   color: var(--muted);
   font-size: 13px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .recipe-card {
   border: 1px solid var(--line);
@@ -265,11 +314,141 @@ textarea {
 .ingredient-swap { display: grid; gap: 6px; max-width: 360px; }
 .swap-info { color: var(--muted); font-size: 12px; }
 .settings-note { color: var(--muted); margin: 0; }
+
+.metrics-progress {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card) 88%, var(--bg));
+}
+.metrics-progress-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.metrics-progress-intro {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.metrics-progress-count {
+  color: var(--text);
+  font-weight: 500;
+}
+.metrics-progress-one { margin: 0; }
+
+.metrics-delta-list {
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+@media (min-width: 520px) {
+  .metrics-delta-list { grid-template-columns: 1fr 1fr; }
+}
+.metrics-delta-list > div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card) 75%, transparent);
+}
+.metrics-delta-list dt {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.metrics-delta-list dd {
+  margin: 0;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.dd-good { color: #7ee0a0; }
+.dd-warn { color: #ff9a8b; }
+body[data-theme="light"] .dd-good { color: #15803d; }
+body[data-theme="light"] .dd-warn { color: #c2410c; }
+
+.metrics-progress-bar-block { margin: 14px 0; }
+.metrics-progress-bar-caption {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+.metrics-progress-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 50%, transparent);
+  overflow: hidden;
+}
+.metrics-progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+.metrics-progress-bar.is-loss .metrics-progress-bar-fill {
+  background: linear-gradient(90deg, #2d6a4a, #6ecf8a);
+}
+.metrics-progress-bar.is-gain .metrics-progress-bar-fill {
+  background: linear-gradient(90deg, #9a3412, #f97316);
+}
+
+.metrics-bmi-scale-block { margin-top: 14px; }
+.metrics-bmi-scale-caption {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.metrics-bmi-scale {
+  position: relative;
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.metrics-bmi-band { min-width: 0; }
+.metrics-bmi-band--low { flex: 3; background: color-mix(in srgb, #60a5fa 55%, var(--card)); }
+.metrics-bmi-band--ok { flex: 13; background: color-mix(in srgb, #6ecf8a 50%, var(--card)); }
+.metrics-bmi-band--high { flex: 10; background: color-mix(in srgb, #fbbf24 55%, var(--card)); }
+.metrics-bmi-band--vhigh { flex: 16; background: color-mix(in srgb, #f87171 50%, var(--card)); }
+.metrics-bmi-marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 4px;
+  margin-left: -2px;
+  background: var(--text);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--card), 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+body[data-theme="light"] .metrics-bmi-marker {
+  box-shadow: 0 0 0 2px var(--card), 0 1px 4px rgba(20, 33, 59, 0.2);
+}
+.metrics-bmi-refs {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+  padding: 0 2px;
+}
+.metrics-progress-foot { margin-top: 12px !important; }
+
 .consult-context {
   margin-top: 10px;
   max-height: min(420px, 50vh);
   overflow: auto;
   font-size: 14px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .consult-context ol { padding-left: 1.25rem; }
 
@@ -375,10 +554,17 @@ body[data-theme="light"] a:visited {
     position: relative;
   }
 
+  .container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
   .app-main-area > main.container {
     order: 0;
     flex: 1 1 auto;
     min-height: 0;
+    min-width: 0;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -563,11 +749,83 @@ body[data-theme="light"] a:visited {
 
   .card {
     border-radius: 16px;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .app-section {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .app-section label {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .app-section .recipe-card {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .app-section h2 {
     font-size: 1.15rem;
     margin-top: 0;
+  }
+
+  #section-planner .row,
+  #section-consult .row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  #section-planner .row > *,
+  #section-consult .row > * {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #section-planner .slot-wrap,
+  #section-planner .slot-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #section-planner .slot-card select {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  #section-planner #dayKcal,
+  #section-planner #kcalDiff {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  #section-consult select,
+  #section-consult input,
+  #section-consult textarea {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  #section-consult #consultResponse,
+  #section-consult #consultRecipePatch {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  #section-consult .change-item .btn,
+  #section-consult .change-item button {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   /* Zapobiega powiększaniu pola przez Safari przy fokusie */

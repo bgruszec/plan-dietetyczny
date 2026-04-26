@@ -119,6 +119,7 @@ const ui = {
   saveMetricBtn: document.getElementById("saveMetricBtn"),
   bmiNow: document.getElementById("bmiNow"),
   metricsTable: document.getElementById("metricsTable"),
+  metricsProgress: document.getElementById("metricsProgress"),
   copyDayBtn: document.getElementById("copyDayBtn"),
   autoPlanBtn: document.getElementById("autoPlanBtn"),
   shoppingScope: document.getElementById("shoppingScope"),
@@ -551,7 +552,7 @@ async function switchProfile(profileId) {
   fillSettingsFromState();
   ui.shoppingWeekSelect.value = "1";
   ui.shoppingDaySelect.value = "1";
-  ui.shoppingOutput.value = "";
+  ui.shoppingOutput.innerHTML = "";
   pendingRecipePatch = null;
   ui.consultResponse.textContent = "";
   ui.consultRecipePatch.innerHTML = "";
@@ -922,6 +923,91 @@ function normalizeShoppingText(s) {
     .replace(/\p{M}/gu, "");
 }
 
+function parseShoppingQuantity(line) {
+  const t = String(line || "").trim();
+  let m = t.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s+(szt)\.?$/i);
+  if (m) {
+    return {
+      name: m[1].trim(),
+      amount: parseFloat(m[2].replace(",", ".")),
+      unit: "szt",
+      count: 1
+    };
+  }
+  m = t.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s+(g|kg|ml|l)\b$/i);
+  if (m) {
+    return {
+      name: m[1].trim(),
+      amount: parseFloat(m[2].replace(",", ".")),
+      unit: m[3].toLowerCase(),
+      count: 1
+    };
+  }
+  m = t.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)(g|kg|ml|l)\b$/i);
+  if (m) {
+    return {
+      name: m[1].trim(),
+      amount: parseFloat(m[2].replace(",", ".")),
+      unit: m[3].toLowerCase(),
+      count: 1
+    };
+  }
+  return { name: t, amount: null, unit: null, count: 1 };
+}
+
+function mergeShoppingIngredientLines(lines) {
+  const map = new Map();
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const p = parseShoppingQuantity(line);
+    const key = p.amount != null && p.unit
+      ? `${normalizeShoppingText(p.name)}|${p.unit}`
+      : `txt:${normalizeShoppingText(line)}`;
+
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, {
+        name: p.name,
+        amount: p.amount,
+        unit: p.unit,
+        count: p.count || 1
+      });
+    } else if (p.amount != null && prev.amount != null && p.unit === prev.unit) {
+      prev.amount += p.amount;
+    } else if (p.amount == null && prev.amount == null) {
+      prev.count = (prev.count || 1) + 1;
+    }
+  }
+
+  const out = [];
+  for (const v of map.values()) {
+    out.push(formatMergedShoppingLine(v));
+  }
+  return out.sort((a, b) => a.localeCompare(b, "pl", { sensitivity: "base" }));
+}
+
+function formatMergedShoppingLine(v) {
+  if (v.amount == null || v.unit == null) {
+    if ((v.count || 1) > 1) return `${v.name} (${v.count}×)`;
+    return v.name;
+  }
+  let n = v.amount;
+  if (v.unit === "szt") {
+    n = Math.round(n * 1000) / 1000;
+  } else {
+    n = Math.round(n * 10) / 10;
+  }
+  let numStr;
+  if (v.unit === "szt") {
+    numStr = Number.isInteger(n) || Math.abs(n - Math.round(n)) < 1e-6 ? String(Math.round(n)) : String(n).replace(/\.?0+$/, "");
+  } else {
+    numStr = Number.isInteger(n) || Math.abs(n - Math.round(n)) < 1e-6 ? String(Math.round(n)) : String(n).replace(",", ".").replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+  }
+  if (v.unit === "szt") return `${v.name} ${numStr} szt`;
+  return `${v.name} ${numStr}${v.unit}`;
+}
+
 function categorizeShoppingIngredient(line) {
   const n = normalizeShoppingText(line);
   let bestTitle = "Inne";
@@ -939,27 +1025,24 @@ function categorizeShoppingIngredient(line) {
   return bestTitle;
 }
 
-function formatShoppingListByCategory(title, ingredientLines) {
+function formatShoppingListByCategoryHtml(title, mergedLines) {
   const groups = new Map();
-  for (const raw of ingredientLines) {
-    const line = raw.trim();
-    if (!line) continue;
+  for (const line of mergedLines) {
     const cat = categorizeShoppingIngredient(line);
-    if (!groups.has(cat)) groups.set(cat, new Set());
-    groups.get(cat).add(line);
+    if (!groups.has(cat)) groups.set(cat, []);
+    groups.get(cat).push(line);
   }
 
-  const parts = [title, ""];
+  const chunks = [`<div class="shopping-title">${escapeHtml(title)}</div>`];
   for (const catTitle of SHOPPING_CATEGORY_ORDER) {
-    const set = groups.get(catTitle);
-    if (!set || !set.size) continue;
-    parts.push(catTitle);
-    [...set].sort((a, b) => a.localeCompare(b, "pl", { sensitivity: "base" })).forEach((item) => {
-      parts.push(`- ${item}`);
+    const items = groups.get(catTitle);
+    if (!items || !items.length) continue;
+    chunks.push(`<div class="shopping-cat"><strong>${escapeHtml(catTitle)}</strong></div>`);
+    [...items].sort((a, b) => a.localeCompare(b, "pl", { sensitivity: "base" })).forEach((item) => {
+      chunks.push(`<div class="shopping-line">- ${escapeHtml(item)}</div>`);
     });
-    parts.push("");
   }
-  return parts.join("\n").replace(/\n+$/, "");
+  return chunks.join("");
 }
 
 function generateShoppingList() {
@@ -984,7 +1067,7 @@ function generateShoppingList() {
 
   const uniqueRecipeIds = Array.from(new Set(recipeIds));
   if (!uniqueRecipeIds.length) {
-    ui.shoppingOutput.value = "Brak wybranych przepisów w tym zakresie.";
+    ui.shoppingOutput.innerHTML = `<div class="shopping-empty">${escapeHtml("Brak wybranych przepisów w tym zakresie.")}</div>`;
     return;
   }
 
@@ -1001,11 +1084,16 @@ function generateShoppingList() {
   const title = scope === "week"
     ? `Lista zakupów - tydzień ${week}`
     : `Lista zakupów - tydzień ${week}, dzień ${day}`;
-  ui.shoppingOutput.value = formatShoppingListByCategory(title, ingredients);
+  const merged = mergeShoppingIngredientLines(ingredients);
+  ui.shoppingOutput.innerHTML = formatShoppingListByCategoryHtml(title, merged);
+}
+
+function getShoppingListPlainText() {
+  return ui.shoppingOutput.innerText.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 async function copyShoppingList() {
-  const text = ui.shoppingOutput.value.trim();
+  const text = getShoppingListPlainText();
   if (!text) {
     alert("Najpierw wygeneruj listę zakupów.");
     return;
@@ -1015,7 +1103,7 @@ async function copyShoppingList() {
 }
 
 async function shareShoppingList() {
-  const text = ui.shoppingOutput.value.trim();
+  const text = getShoppingListPlainText();
   if (!text) {
     alert("Najpierw wygeneruj listę zakupów.");
     return;
@@ -1520,6 +1608,111 @@ function bmiLabel(bmi) {
   return "Otyłość";
 }
 
+function formatDeltaNumber(n, suffix, decimals = 1) {
+  if (n == null || Number.isNaN(n)) return "—";
+  const p = 10 ** decimals;
+  const v = Math.round(n * p) / p;
+  const sign = v > 0 ? "+" : "";
+  return `${sign}${String(v).replace(".", ",")}${suffix}`;
+}
+
+function renderMetricsProgress(history) {
+  const el = ui.metricsProgress;
+  if (!el) return;
+
+  if (history.length === 0) {
+    el.hidden = true;
+    el.innerHTML = "";
+    return;
+  }
+
+  if (history.length === 1) {
+    el.hidden = false;
+    el.innerHTML = `<p class="settings-note metrics-progress-one">Dodaj drugi pomiar (inna data), aby zobaczyć porównanie i postęp w czasie.</p>`;
+    return;
+  }
+
+  const first = history[0];
+  const latest = history[history.length - 1];
+  const prev = history[history.length - 2];
+
+  const dw = first.weight != null && latest.weight != null
+    ? Number((latest.weight - first.weight).toFixed(1))
+    : null;
+  const dwPrev = prev.weight != null && latest.weight != null
+    ? Number((latest.weight - prev.weight).toFixed(1))
+    : null;
+
+  const dbmi = first.bmi != null && latest.bmi != null
+    ? Number((latest.bmi - first.bmi).toFixed(2))
+    : null;
+  const dbmiPrev = prev.bmi != null && latest.bmi != null
+    ? Number((latest.bmi - prev.bmi).toFixed(2))
+    : null;
+
+  const dWaist = first.waist != null && latest.waist != null
+    ? Number((latest.waist - first.waist).toFixed(1))
+    : null;
+  const dWaistPrev = prev.waist != null && latest.waist != null
+    ? Number((latest.waist - prev.waist).toFixed(1))
+    : null;
+
+  let weightBarHtml = "";
+  if (first.weight != null && latest.weight != null && first.weight > 0) {
+    const lost = first.weight - latest.weight;
+    const pctLoss = Math.min(100, Math.max(0, (lost / first.weight) * 100));
+    const pctGain = Math.min(100, Math.max(0, (-lost / first.weight) * 100));
+    const label = lost >= 0
+      ? `Udział redukcji wagi względem pierwszego pomiaru: ${formatDeltaNumber(pctLoss, "%", 1)} masy startowej`
+      : `Waga wyższa niż przy pierwszym pomiarze o ${formatDeltaNumber(-lost, " kg", 1)} (${formatDeltaNumber(pctGain, "%", 1)} masy startowej)`;
+    weightBarHtml = `
+      <div class="metrics-progress-bar-block">
+        <div class="metrics-progress-bar-caption">${escapeHtml(label)}</div>
+        <div class="metrics-progress-bar ${lost >= 0 ? "is-loss" : "is-gain"}" role="presentation">
+          <div class="metrics-progress-bar-fill" style="width:${lost >= 0 ? pctLoss : pctGain}%"></div>
+        </div>
+      </div>`;
+  }
+
+  const bmiMin = 17;
+  const bmiMax = 38;
+  let bmiScaleHtml = "";
+  if (latest.bmi != null) {
+    const pos = Math.min(100, Math.max(0, ((latest.bmi - bmiMin) / (bmiMax - bmiMin)) * 100));
+    bmiScaleHtml = `
+      <div class="metrics-bmi-scale-block">
+        <div class="metrics-bmi-scale-caption">BMI na skali (${bmiMin}–${bmiMax})</div>
+        <div class="metrics-bmi-scale" aria-hidden="true">
+          <div class="metrics-bmi-band metrics-bmi-band--low"></div>
+          <div class="metrics-bmi-band metrics-bmi-band--ok"></div>
+          <div class="metrics-bmi-band metrics-bmi-band--high"></div>
+          <div class="metrics-bmi-band metrics-bmi-band--vhigh"></div>
+          <div class="metrics-bmi-marker" style="left:${pos}%" title="${escapeHtml(String(latest.bmi))}"></div>
+        </div>
+        <div class="metrics-bmi-refs"><span>17</span><span>18,5</span><span>25</span><span>30</span><span>38</span></div>
+      </div>`;
+  }
+
+  el.hidden = false;
+  el.innerHTML = `
+    <h3 class="metrics-progress-title">Postęp</h3>
+    <p class="metrics-progress-intro">Od <strong>${escapeHtml(first.date)}</strong> (${escapeHtml(String(first.weight ?? "?"))} kg)
+    do <strong>${escapeHtml(latest.date)}</strong> (${escapeHtml(String(latest.weight ?? "?"))} kg)
+    — <span class="metrics-progress-count">${history.length} wpisów</span></p>
+    <dl class="metrics-delta-list">
+      <div><dt>Waga vs pierwszy pomiar</dt><dd class="${dw != null && dw < 0 ? "dd-good" : dw != null && dw > 0 ? "dd-warn" : ""}">${escapeHtml(formatDeltaNumber(dw, " kg", 1))}</dd></div>
+      <div><dt>Waga vs poprzedni wpis</dt><dd class="${dwPrev != null && dwPrev < 0 ? "dd-good" : dwPrev != null && dwPrev > 0 ? "dd-warn" : ""}">${escapeHtml(formatDeltaNumber(dwPrev, " kg", 1))}</dd></div>
+      <div><dt>BMI vs pierwszy</dt><dd class="${dbmi != null && dbmi < 0 ? "dd-good" : dbmi != null && dbmi > 0 ? "dd-warn" : ""}">${escapeHtml(formatDeltaNumber(dbmi, " pkt BMI", 2))}</dd></div>
+      <div><dt>BMI vs poprzedni</dt><dd class="${dbmiPrev != null && dbmiPrev < 0 ? "dd-good" : dbmiPrev != null && dbmiPrev > 0 ? "dd-warn" : ""}">${escapeHtml(formatDeltaNumber(dbmiPrev, " pkt BMI", 2))}</dd></div>
+      <div><dt>Talia vs pierwszy</dt><dd class="${dWaist != null && dWaist < 0 ? "dd-good" : dWaist != null && dWaist > 0 ? "dd-warn" : ""}">${escapeHtml(formatDeltaNumber(dWaist, " cm", 1))}</dd></div>
+      <div><dt>Talia vs poprzedni</dt><dd class="${dWaistPrev != null && dWaistPrev < 0 ? "dd-good" : dWaistPrev != null && dWaistPrev > 0 ? "dd-warn" : ""}">${escapeHtml(formatDeltaNumber(dWaistPrev, " cm", 1))}</dd></div>
+    </dl>
+    ${weightBarHtml}
+    ${bmiScaleHtml}
+    <p class="settings-note metrics-progress-foot">Kolory: zwykle zielono = spadek wagi, BMI lub obwodu (często pożądany przy redukcji), czerwono = wzrost — znaczenie zależy od celu i sytuacji zdrowotnej.</p>
+  `;
+}
+
 function renderMetrics() {
   let history = [];
   try { history = JSON.parse(localStorage.getItem(metricsKey()) || "[]"); } catch {}
@@ -1528,6 +1721,8 @@ function renderMetrics() {
   ui.bmiNow.textContent = latest ? `BMI: ${latest.bmi} (${bmiLabel(latest.bmi)})` : "BMI: -";
 
   if (!history.length) {
+    ui.metricsProgress.hidden = true;
+    ui.metricsProgress.innerHTML = "";
     ui.metricsTable.innerHTML = "<p>Brak zapisanych pomiarów.</p>";
     return;
   }
@@ -1562,6 +1757,8 @@ function renderMetrics() {
       </table>
     </div>
   `;
+
+  renderMetricsProgress(history);
 }
 
 function initMenu() {

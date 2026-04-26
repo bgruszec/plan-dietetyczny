@@ -99,6 +99,7 @@
           <button id="saveMetricBtn" class="btn">Zapisz pomiar</button>
           <strong id="bmiNow">BMI: -</strong>
         </div>
+        <div id="metricsProgress" class="metrics-progress" hidden></div>
         <div id="metricsTable"></div>
       </section>
 
@@ -157,7 +158,7 @@
           <button id="copyShoppingBtn" type="button">Kopiuj</button>
           <button id="shareShoppingBtn" type="button">Udostępnij</button>
         </div>
-        <textarea id="shoppingOutput" rows="14" readonly placeholder="Tu pojawi się lista zakupów..."></textarea>
+        <div id="shoppingOutput" class="shopping-output" data-placeholder="Tu pojawi się lista zakupów..." role="region" aria-label="Wygenerowana lista zakupów"></div>
       </section>
 
       <section class="card app-section" id="section-consult">
