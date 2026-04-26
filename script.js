@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const APP_KEY = "diet-app-v3";
 const ACTIVE_PROFILE_KEY = "diet-active-profile";
 const THEME_KEY = "diet-theme";
@@ -137,6 +139,22 @@ const ui = {
   targetKcalInput: document.getElementById("targetKcalInput"),
   saveSettingsBtn: document.getElementById("saveSettingsBtn"),
   resetPlannerBtn: document.getElementById("resetPlannerBtn")
+  ,
+  authCard: document.getElementById("authCard"),
+  authStatus: document.getElementById("authStatus"),
+  authEmail: document.getElementById("authEmail"),
+  authPassword: document.getElementById("authPassword"),
+  authMessage: document.getElementById("authMessage"),
+  loginBtn: document.getElementById("loginBtn"),
+  registerBtn: document.getElementById("registerBtn"),
+  logoutBtn: document.getElementById("logoutBtn"),
+  appShell: Array.from(document.querySelectorAll(".app-shell")),
+  consultTargetWeek: document.getElementById("consultTargetWeek"),
+  consultTargetDay: document.getElementById("consultTargetDay"),
+  consultTargetRecipe: document.getElementById("consultTargetRecipe"),
+  consultRecipeSearch: document.getElementById("consultRecipeSearch"),
+  consultManualPreview: document.getElementById("consultManualPreview"),
+  applyManualRecipeChangeBtn: document.getElementById("applyManualRecipeChangeBtn")
 };
 
 let profiles = [];
@@ -147,17 +165,233 @@ let planData = { targetKcal: 2100, defaultPlan: { "1": [], "2": [], "3": [], "4"
 let selectedWeek = 1;
 let selectedDay = 1;
 let pendingDietChanges = [];
+let supabase = null;
+let authUser = null;
 
 init();
 
 async function init() {
   applyTheme(localStorage.getItem(THEME_KEY) || "dark");
+  await initSupabase();
   fillWeekDaySelectors();
   initMenu();
   bindEvents();
   await loadProfiles();
-  await switchProfile(currentProfile);
   initShoppingSelectors();
+  await restoreSessionAndBootstrap();
+}
+
+async function initSupabase() {
+  try {
+    const res = await fetch("/api/runtime-config");
+    if (!res.ok) return;
+    const config = await res.json();
+    if (!config.supabaseUrl || !config.supabaseAnonKey) return;
+    supabase = createClient(config.supabaseUrl, config.supabaseAnonKey);
+  } catch {
+    supabase = null;
+  }
+}
+
+async function restoreSessionAndBootstrap() {
+  if (!supabase) {
+    setAuthUi(null, "Tryb lokalny (bez logowania).", true);
+    await switchProfile(currentProfile);
+    return;
+  }
+
+  const { data } = await supabase.auth.getSession();
+  authUser = data.session?.user || null;
+  setAuthUi(authUser);
+
+  if (authUser) {
+    await switchProfile(currentProfile);
+    await pullRemoteState();
+    return;
+  }
+
+  ui.appShell.forEach((el) => el.classList.add("hidden"));
+}
+
+function setAuthUi(user, message = "", forceShowApp = false) {
+  const signed = Boolean(user);
+  ui.authStatus.textContent = signed ? `Zalogowany: ${user.email}` : "Niezalogowany";
+  ui.authMessage.textContent = message;
+  ui.logoutBtn.disabled = !signed;
+  ui.appShell.forEach((el) => el.classList.toggle("hidden", !signed && !forceShowApp));
+  ui.authCard.classList.toggle("hidden", signed || forceShowApp);
+}
+
+async function registerUser() {
+  if (!supabase) return;
+  const email = ui.authEmail.value.trim();
+  const password = ui.authPassword.value.trim();
+  if (!email || password.length < 6) {
+    setAuthUi(authUser, "Podaj email i hasło (min. 6 znaków).");
+    return;
+  }
+  const { error } = await supabase.auth.signUp({ email, password });
+  if (error) {
+    setAuthUi(authUser, `Błąd rejestracji: ${error.message}`);
+    return;
+  }
+  setAuthUi(authUser, "Konto utworzone. Sprawdź mail i zaloguj się.");
+}
+
+async function loginUser() {
+  if (!supabase) return;
+  const email = ui.authEmail.value.trim();
+  const password = ui.authPassword.value.trim();
+  if (!email || !password) {
+    setAuthUi(authUser, "Podaj email i hasło.");
+    return;
+  }
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    setAuthUi(authUser, `Błąd logowania: ${error.message}`);
+    return;
+  }
+  authUser = data.user;
+  setAuthUi(authUser, "Zalogowano.");
+  await switchProfile(currentProfile);
+  await pullRemoteState();
+}
+
+async function logoutUser() {
+  if (!supabase) return;
+  await supabase.auth.signOut();
+  authUser = null;
+  setAuthUi(null, "Wylogowano.");
+}
+
+async function pullRemoteState() {
+  if (!supabase || !authUser) return;
+  await ensureUserProfile();
+
+  const profile = await loadRemoteProfileSettings();
+  if (profile) localStorage.setItem(settingsKey(), JSON.stringify(profile));
+
+  const planner = await loadRemotePlannerEntries();
+  if (planner) {
+    setPlannerState(planner);
+  } else {
+    const localPlanner = getPlannerState();
+    const keys = Object.keys(localPlanner);
+    for (const key of keys) {
+      const [week, day] = key.split("-").map(Number);
+      await savePlannerEntryRemote(week, day, localPlanner[key]);
+    }
+  }
+
+  const metrics = await loadRemoteMetricsEntries();
+  if (metrics?.length) {
+    localStorage.setItem(metricsKey(), JSON.stringify(metrics));
+  } else {
+    let localMetrics = [];
+    try { localMetrics = JSON.parse(localStorage.getItem(metricsKey()) || "[]"); } catch {}
+    for (const entry of localMetrics) await saveMetricsRemote(entry);
+  }
+
+  renderPlanner();
+  renderPlanTables();
+  renderMetrics();
+  fillSettingsFromState();
+}
+
+async function ensureUserProfile() {
+  if (!supabase || !authUser) return;
+  const payload = {
+    user_id: authUser.id,
+    profile_id: currentProfile,
+    target_kcal: Number(loadProfileSettings().targetKcal || planData.targetKcal || 2100),
+    theme: document.body.dataset.theme || "dark",
+    updated_at: new Date().toISOString()
+  };
+  await supabase.from("profiles").upsert(payload, { onConflict: "user_id,profile_id" });
+}
+
+async function loadRemoteProfileSettings() {
+  const { data } = await supabase
+    .from("profiles")
+    .select("target_kcal,theme")
+    .eq("user_id", authUser.id)
+    .eq("profile_id", currentProfile)
+    .maybeSingle();
+  if (!data) return null;
+  if (data.theme) applyTheme(data.theme);
+  return { targetKcal: data.target_kcal, updatedAt: new Date().toISOString() };
+}
+
+async function loadRemotePlannerEntries() {
+  const { data } = await supabase
+    .from("planner_entries")
+    .select("week,day,meal1,meal2,meal3,snack")
+    .eq("user_id", authUser.id)
+    .eq("profile_id", currentProfile);
+  if (!data?.length) return null;
+  const mapped = {};
+  data.forEach((r) => {
+    mapped[`${r.week}-${r.day}`] = { meal1: r.meal1 || "", meal2: r.meal2 || "", meal3: r.meal3 || "", snack: r.snack || "" };
+  });
+  return mapped;
+}
+
+async function loadRemoteMetricsEntries() {
+  const { data } = await supabase
+    .from("metrics_entries")
+    .select("date,gender,age,weight,height,waist,chest,hips,bmi")
+    .eq("user_id", authUser.id)
+    .eq("profile_id", currentProfile)
+    .order("date", { ascending: true });
+  return data || null;
+}
+
+async function savePlannerEntryRemote(week, day, entry) {
+  if (!supabase || !authUser) return;
+  await supabase.from("planner_entries").upsert({
+    user_id: authUser.id,
+    profile_id: currentProfile,
+    week,
+    day,
+    meal1: entry.meal1 || "",
+    meal2: entry.meal2 || "",
+    meal3: entry.meal3 || "",
+    snack: entry.snack || "",
+    updated_at: new Date().toISOString()
+  }, { onConflict: "user_id,profile_id,week,day" });
+}
+
+async function saveSettingsRemote(targetKcal) {
+  if (!supabase || !authUser) return;
+  await ensureUserProfile();
+  await supabase.from("profiles").upsert({
+    user_id: authUser.id,
+    profile_id: currentProfile,
+    target_kcal: targetKcal,
+    theme: document.body.dataset.theme || "dark",
+    updated_at: new Date().toISOString()
+  }, { onConflict: "user_id,profile_id" });
+}
+
+async function saveMetricsRemote(entry) {
+  if (!supabase || !authUser) return;
+  await supabase.from("metrics_entries").upsert({
+    ...entry,
+    user_id: authUser.id,
+    profile_id: currentProfile
+  }, { onConflict: "user_id,profile_id,date" });
+}
+
+async function saveConsultHistory(question, answer, changes) {
+  if (!supabase || !authUser) return;
+  await supabase.from("consult_history").insert({
+    user_id: authUser.id,
+    profile_id: currentProfile,
+    question,
+    answer,
+    changes_json: changes || [],
+    created_at: new Date().toISOString()
+  });
 }
 
 function fillWeekDaySelectors() {
@@ -180,27 +414,39 @@ function initShoppingSelectors() {
   ui.shoppingDaySelect.innerHTML = ui.daySelect.innerHTML;
   ui.shoppingWeekSelect.value = ui.weekSelect.value;
   ui.shoppingDaySelect.value = ui.daySelect.value;
+  ui.consultTargetWeek.innerHTML = ui.weekSelect.innerHTML;
+  ui.consultTargetDay.innerHTML = ui.daySelect.innerHTML;
+  ui.consultTargetWeek.value = ui.weekSelect.value;
+  ui.consultTargetDay.value = ui.daySelect.value;
 }
 
 function bindEvents() {
+  ui.loginBtn.addEventListener("click", loginUser);
+  ui.registerBtn.addEventListener("click", registerUser);
+  ui.logoutBtn.addEventListener("click", logoutUser);
+
   ui.profileSelect.addEventListener("change", async () => {
     const id = ui.profileSelect.value;
     localStorage.setItem(ACTIVE_PROFILE_KEY, id);
     await switchProfile(id);
+    await pullRemoteState();
   });
 
   ui.weekSelect.addEventListener("change", () => {
     selectedWeek = Number(ui.weekSelect.value);
     renderPlanner();
+    refreshConsultTargetOptions();
   });
 
   ui.daySelect.addEventListener("change", () => {
     selectedDay = Number(ui.daySelect.value);
     ui.shoppingDaySelect.value = ui.daySelect.value;
+    ui.consultTargetDay.value = ui.daySelect.value;
     renderPlanner();
   });
   ui.weekSelect.addEventListener("change", () => {
     ui.shoppingWeekSelect.value = ui.weekSelect.value;
+    ui.consultTargetWeek.value = ui.weekSelect.value;
   });
 
   ui.weekFilter.addEventListener("change", renderPlanTables);
@@ -216,6 +462,22 @@ function bindEvents() {
   ui.consultAskBtn.addEventListener("click", askDietAssistant);
   ui.consultSuggestChangesBtn.addEventListener("click", askForPlanChanges);
   ui.consultApplyAllBtn.addEventListener("click", applyAllSuggestedChanges);
+  ui.consultTargetSlot.addEventListener("change", renderManualChangePreview);
+  ui.consultTargetWeek.addEventListener("change", () => {
+    ui.weekSelect.value = ui.consultTargetWeek.value;
+    selectedWeek = Number(ui.consultTargetWeek.value);
+    renderPlanner();
+    refreshConsultTargetOptions();
+  });
+  ui.consultTargetDay.addEventListener("change", () => {
+    ui.daySelect.value = ui.consultTargetDay.value;
+    selectedDay = Number(ui.consultTargetDay.value);
+    renderPlanner();
+    refreshConsultTargetOptions();
+  });
+  ui.consultTargetRecipe.addEventListener("change", renderManualChangePreview);
+  ui.consultRecipeSearch.addEventListener("input", refreshConsultRecipeOptions);
+  ui.applyManualRecipeChangeBtn.addEventListener("click", applyManualRecipeChange);
   ui.weekSelect.addEventListener("change", refreshConsultTargetOptions);
   ui.daySelect.addEventListener("change", refreshConsultTargetOptions);
 
@@ -273,6 +535,8 @@ async function switchProfile(profileId) {
   fillSettingsFromState();
   ui.shoppingWeekSelect.value = "1";
   ui.shoppingDaySelect.value = "1";
+  ui.consultTargetWeek.value = "1";
+  ui.consultTargetDay.value = "1";
   ui.shoppingOutput.value = "";
   pendingDietChanges = [];
   ui.consultResponse.textContent = "";
@@ -376,10 +640,12 @@ function renderPlanner() {
   }).join("");
 
   ui.slotWrap.querySelectorAll("select").forEach((el) => {
-    el.addEventListener("change", () => {
+    el.addEventListener("change", async () => {
       state[dayKey][el.dataset.slot] = el.value;
       setPlannerState(state);
+      await savePlannerEntryRemote(selectedWeek, selectedDay, state[dayKey]);
       renderPlanner();
+      renderPlanTables();
     });
   });
 
@@ -390,7 +656,7 @@ function renderPlanner() {
   ui.kcalDiff.textContent = diff === 0 ? "Idealnie pod cel." : diff > 0 ? `+${diff} kcal` : `${diff} kcal`;
 }
 
-function copySelectedDayPlan() {
+async function copySelectedDayPlan() {
   const sourceWeek = selectedWeek;
   const sourceDay = selectedDay;
 
@@ -428,6 +694,7 @@ function copySelectedDayPlan() {
 
   state[targetKey] = { ...sourceEntry };
   setPlannerState(state);
+  await savePlannerEntryRemote(targetWeek, targetDay, state[targetKey]);
 
   renderPlanTables();
   alert(`Skopiowano plan z tygodnia ${sourceWeek}, dnia ${sourceDay} na tydzień ${targetWeek}, dzień ${targetDay}.`);
@@ -613,6 +880,61 @@ function refreshConsultTargetOptions() {
     const recipeTitle = recipeId ? (recipesById[recipeId]?.title || recipeId) : "brak przepisu";
     return `<option value="${slot.id}">${slot.label}: ${escapeHtml(recipeTitle)}</option>`;
   }).join("");
+  ui.consultTargetWeek.value = String(week);
+  ui.consultTargetDay.value = String(day);
+  refreshConsultRecipeOptions();
+  renderManualChangePreview();
+}
+
+function refreshConsultRecipeOptions() {
+  const q = ui.consultRecipeSearch.value.trim().toLowerCase();
+  const filtered = recipes.filter((r) => `${r.id} ${r.title}`.toLowerCase().includes(q));
+  ui.consultTargetRecipe.innerHTML = filtered
+    .map((r) => `<option value="${r.id}">${r.id} - ${escapeHtml(r.title)} (${r.kcal} kcal)</option>`)
+    .join("");
+  if (!ui.consultTargetRecipe.value && filtered[0]) {
+    ui.consultTargetRecipe.value = filtered[0].id;
+  }
+}
+
+function renderManualChangePreview() {
+  const week = Number(ui.consultTargetWeek.value || selectedWeek);
+  const day = Number(ui.consultTargetDay.value || selectedDay);
+  const slotId = ui.consultTargetSlot.value;
+  const nextId = ui.consultTargetRecipe.value;
+  const row = getPlannedDayEntry(week, day);
+  const currentId = row[slotId] || "-";
+  const currentName = currentId === "-" ? "brak" : (recipesById[currentId]?.title || currentId);
+  const nextName = nextId ? (recipesById[nextId]?.title || nextId) : "brak";
+  ui.consultManualPreview.textContent = `Podmiana: ${currentName} (${currentId}) -> ${nextName} (${nextId || "-"})`;
+}
+
+async function applyManualRecipeChange() {
+  const week = Number(ui.consultTargetWeek.value || selectedWeek);
+  const day = Number(ui.consultTargetDay.value || selectedDay);
+  const slotId = ui.consultTargetSlot.value;
+  const recipeId = ui.consultTargetRecipe.value;
+  if (!recipeId) return;
+  if (!canRecipeFitSlot(recipeId, slotId)) {
+    alert("Ten przepis nie pasuje do wybranego slotu.");
+    return;
+  }
+  const state = getPlannerState();
+  const key = `${week}-${day}`;
+  const base = getPlannedDayEntry(week, day);
+  const row = { ...base, ...(state[key] || {}) };
+  row[slotId] = recipeId;
+  state[key] = row;
+  setPlannerState(state);
+  await savePlannerEntryRemote(week, day, row);
+  if (Number(ui.weekSelect.value) === week && Number(ui.daySelect.value) === day) {
+    selectedWeek = week;
+    selectedDay = day;
+    renderPlanner();
+  }
+  renderPlanTables();
+  refreshConsultTargetOptions();
+  alert("Zmieniono przepis.");
 }
 
 async function askDietAssistant() {
@@ -627,8 +949,8 @@ async function askDietAssistant() {
 async function askForPlanChanges() {
   const slotId = ui.consultTargetSlot.value;
   const slot = slotConfig.find((s) => s.id === slotId);
-  const week = Number(ui.weekSelect.value || selectedWeek);
-  const day = Number(ui.daySelect.value || selectedDay);
+  const week = Number(ui.consultTargetWeek.value || selectedWeek);
+  const day = Number(ui.consultTargetDay.value || selectedDay);
   const row = getPlannedDayEntry(week, day);
   const currentRecipeId = row[slotId] || "";
   const currentRecipeTitle = currentRecipeId ? (recipesById[currentRecipeId]?.title || currentRecipeId) : "brak";
@@ -679,6 +1001,7 @@ async function askDietAssistantWithMessage(message, options = {}) {
 
     ui.consultResponse.textContent = answer;
     renderPendingChanges();
+    await saveConsultHistory(message, answer, pendingDietChanges);
     ui.consultPrompt.value = "";
   } catch (err) {
     ui.consultResponse.textContent = err.message || "Nie udało się połączyć z asystentem.";
@@ -713,7 +1036,7 @@ function renderPendingChanges() {
   });
 }
 
-function applySuggestedChange(index) {
+async function applySuggestedChange(index) {
   const change = pendingDietChanges[index];
   if (!change) return;
   if (!canRecipeFitSlot(change.recipeId, change.slotId)) {
@@ -728,22 +1051,23 @@ function applySuggestedChange(index) {
   row[change.slotId] = change.recipeId;
   state[key] = row;
   setPlannerState(state);
+  await savePlannerEntryRemote(change.week, change.day, row);
   renderPlanner();
   renderPlanTables();
   renderPendingChanges();
 }
 
-function applyAllSuggestedChanges() {
+async function applyAllSuggestedChanges() {
   if (!pendingDietChanges.length) {
     alert("Brak zmian do zastosowania.");
     return;
   }
 
   let applied = 0;
-  pendingDietChanges.forEach((_, idx) => {
+  for (let idx = 0; idx < pendingDietChanges.length; idx += 1) {
     const change = pendingDietChanges[idx];
-    if (!change) return;
-    if (!canRecipeFitSlot(change.recipeId, change.slotId)) return;
+    if (!change) continue;
+    if (!canRecipeFitSlot(change.recipeId, change.slotId)) continue;
     const state = getPlannerState();
     const key = `${change.week}-${change.day}`;
     const base = getPlannedDayEntry(change.week, change.day);
@@ -751,8 +1075,9 @@ function applyAllSuggestedChanges() {
     row[change.slotId] = change.recipeId;
     state[key] = row;
     setPlannerState(state);
+    await savePlannerEntryRemote(change.week, change.day, row);
     applied += 1;
-  });
+  }
 
   renderPlanner();
   renderPlanTables();
@@ -938,7 +1263,7 @@ function formatCategory(c) {
   return "przekąska";
 }
 
-function saveMetric() {
+async function saveMetric() {
   const date = ui.mDate.value || new Date().toISOString().slice(0, 10);
   const gender = ui.mGender.value;
   const age = Number(ui.mAge.value) || null;
@@ -962,6 +1287,7 @@ function saveMetric() {
   history.push(entry);
   history.sort((a, b) => a.date.localeCompare(b.date));
   localStorage.setItem(metricsKey(), JSON.stringify(history));
+  await saveMetricsRemote(entry);
 
   renderMetrics();
 }
@@ -1055,7 +1381,7 @@ function fillSettingsFromState() {
   ui.themeSelect.value = document.body.dataset.theme || "dark";
 }
 
-function saveSettings() {
+async function saveSettings() {
   const targetKcal = Number(ui.targetKcalInput.value);
   if (!targetKcal || targetKcal < 1000 || targetKcal > 6000) {
     alert("Podaj cel kcal w zakresie 1000-6000.");
@@ -1068,6 +1394,7 @@ function saveSettings() {
   };
   localStorage.setItem(settingsKey(), JSON.stringify(settings));
   applyTheme(ui.themeSelect.value);
+  await saveSettingsRemote(targetKcal);
 
   ui.heroKcal.textContent = `Cel: ${getTargetKcal()} kcal dziennie`;
   renderPlanner();
@@ -1078,6 +1405,12 @@ function saveSettings() {
 function resetPlannerForCurrentProfile() {
   if (!confirm("Na pewno zresetować planer dla tego profilu?")) return;
   localStorage.removeItem(plannerKey());
+  if (supabase && authUser) {
+    supabase.from("planner_entries")
+      .delete()
+      .eq("user_id", authUser.id)
+      .eq("profile_id", currentProfile);
+  }
   renderPlanner();
 }
 

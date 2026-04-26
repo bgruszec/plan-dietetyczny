@@ -25,6 +25,18 @@ body {
   align-items: center;
   gap: 12px;
 }
+.auth-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.auth-card {
+  width: min(1100px, 94%);
+  margin: 0 auto 12px;
+}
+.app-shell.hidden {
+  display: none;
+}
 .main-menu {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -207,6 +219,9 @@ body[data-theme="light"] {
   .topbar {
     flex-direction: column;
     align-items: stretch;
+  }
+  .auth-chip {
+    justify-content: space-between;
   }
   .main-menu {
     grid-template-columns: repeat(3, minmax(0, 1fr));

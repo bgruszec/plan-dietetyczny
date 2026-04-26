@@ -16,9 +16,30 @@
         Profil
         <select id="profileSelect"></select>
       </label>
+      <div class="auth-chip">
+        <span id="authStatus">Niezalogowany</span>
+        <button id="logoutBtn" type="button">Wyloguj</button>
+      </div>
     </header>
 
-    <nav class="main-menu" aria-label="Nawigacja aplikacji">
+    <section class="card auth-card" id="authCard">
+      <h2>Logowanie</h2>
+      <div class="grid">
+        <label>Email
+          <input id="authEmail" type="email" placeholder="twoj@email.com" />
+        </label>
+        <label>Hasło
+          <input id="authPassword" type="password" placeholder="minimum 6 znaków" />
+        </label>
+      </div>
+      <div class="row">
+        <button id="loginBtn" class="btn" type="button">Zaloguj</button>
+        <button id="registerBtn" type="button">Zarejestruj</button>
+      </div>
+      <p id="authMessage" class="settings-note"></p>
+    </section>
+
+    <nav class="main-menu app-shell" aria-label="Nawigacja aplikacji">
       <button class="menu-btn is-active" data-section="metrics" aria-selected="true">
         <span class="menu-btn-icon">PM</span>
         <span class="menu-btn-label">Pomiary</span>
@@ -49,7 +70,7 @@
       </button>
     </nav>
 
-    <main class="container">
+    <main class="container app-shell">
       <section class="card app-section is-active" id="section-metrics">
         <h2>Dane i pomiary</h2>
         <div class="grid">
@@ -135,9 +156,23 @@
         <h2>Konsultacje AI</h2>
         <p class="settings-note">To wsparcie informacyjne, nie porada medyczna. Przy chorobach i lekach skonsultuj się ze specjalistą.</p>
         <div class="grid">
+          <label>Tydzień celu
+            <select id="consultTargetWeek"></select>
+          </label>
+          <label>Dzień celu
+            <select id="consultTargetDay"></select>
+          </label>
           <label>Zmień przepis w slocie
             <select id="consultTargetSlot"></select>
           </label>
+          <label>Nowy przepis (pełna lista)
+            <select id="consultTargetRecipe"></select>
+          </label>
+        </div>
+        <input id="consultRecipeSearch" type="text" placeholder="Filtruj przepisy po nazwie lub ID..." />
+        <p id="consultManualPreview" class="settings-note"></p>
+        <div class="row">
+          <button id="applyManualRecipeChangeBtn" type="button">Zastosuj wybrany przepis</button>
         </div>
         <label>Pytanie do asystenta
           <textarea id="consultPrompt" rows="4" placeholder="Np. chcę wersję szybszą, tańszą i bardziej sycącą"></textarea>
@@ -172,6 +207,6 @@
       </section>
     </main>
 
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
   </body>
 </html>

@@ -69,7 +69,9 @@ export default async function handler(req, res) {
 
     const data = await geminiRes.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    res.status(200).json(parseAssistantJson(text));
+    const parsed = parseAssistantJson(text);
+    parsed.changes = validateChanges(parsed.changes, context, target);
+    res.status(200).json(parsed);
   } catch (err) {
     res.status(500).json({ error: err?.message || "Nieznany błąd serwera." });
   }
@@ -108,6 +110,27 @@ function normalizeChange(change) {
     recipeId,
     reason: String(change?.reason || "")
   };
+}
+
+function validateChanges(changes, context, target) {
+  const available = Array.isArray(context?.availableRecipes) ? context.availableRecipes : [];
+  const byId = Object.fromEntries(available.map((r) => [r.id, r]));
+
+  return (changes || []).filter((change) => {
+    if (!byId[change.recipeId]) return false;
+    if (target?.slotId && target?.week && target?.day) {
+      if (change.slotId !== String(target.slotId)) return false;
+      if (change.week !== Number(target.week)) return false;
+      if (change.day !== Number(target.day)) return false;
+    }
+    const cats = byId[change.recipeId]?.categories || [];
+    if (change.slotId === "meal1" || change.slotId === "meal3") {
+      return cats.includes("sniadanie") || cats.includes("kolacja");
+    }
+    if (change.slotId === "meal2") return cats.includes("obiad");
+    if (change.slotId === "snack") return cats.includes("przekaska");
+    return false;
+  });
 }
 
 function extractJsonBlock(text) {
