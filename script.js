@@ -866,7 +866,8 @@ const SHOPPING_CATEGORY_RULES = [
       "pomidor", "ogórek", "papryka", "cukinia", "brokuł", "marchew", "kapusta", "seler naciowy",
       "kalafior", "szparag", "bakłażan", "dynia", "pieczark", "burak", "cebula", "czosnek",
       "ziemniak", "batat", "topinambur", "por ", " rzodkiew", "kalarepa", "botwina", "szpinak",
-      "banan", "jabłk", "pomarańcz", "grejpfrut", "cytryn", "kiwi", "malin", "truskawk",
+      "szczypiorek", "koperek", "koper", "banan", "jabłk", "pomarańcz", "grejpfrut", "cytryn", "kiwi",
+      "malin", "truskawk",
       "borówk", "jagod", "wiśni", "czeresn", "winogron", "mango", "ananas", "śliwk", "sliwk",
       "brzoskwin", "gruszk", "awokado", "kaki", "mandaryn", "melon", "arbuz", "granat"
     ]
@@ -942,7 +943,7 @@ const SHOPPING_CATEGORY_RULES = [
       "erytrol", "ksylitol", "stewia", "miód", "syrop klonowy", "syrop z agawy", "cukier",
       "wanili", "cynamon", "kardamon", "curry", "kurkuma", "imbir mielony", "papryka słodka",
       "papryka ostra", "ziele angielskie", "laur", "goździk", "majeranek", "tymianek", "oregano",
-      "bazylia", "natka", "koperek", "koper włoski", "chrzan", "musztard", "majonez", "ketchup",
+      "bazylia", "natka", "koper włoski", "chrzan", "musztard", "majonez", "ketchup",
       "sos sojowy", "sos ", "ocet", "balsamiczny", "sól", "pieprz", "zioła",
       "przypraw", "ekstrakt waniliowy", "aromat"
     ]
