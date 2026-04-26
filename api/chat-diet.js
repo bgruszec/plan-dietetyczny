@@ -13,6 +13,7 @@ export default async function handler(req, res) {
 
   const message = String(req.body?.message || "").trim();
   const context = req.body?.context || {};
+  const forceChanges = Boolean(req.body?.forceChanges);
   if (!message) {
     res.status(400).json({ error: "Brak pytania." });
     return;
@@ -24,8 +25,12 @@ export default async function handler(req, res) {
     "Mozesz proponowac zmiany tylko w formacie:",
     "{\"answer\":\"...\",\"changes\":[{\"week\":1,\"day\":2,\"slotId\":\"meal2\",\"recipeId\":\"R10\",\"reason\":\"...\"}]}",
     "Zasady slotow: meal1=sniadanie, meal2=obiad, meal3=kolacja, snack=przekaska.",
+    "Mozesz wybierac recipeId z calej listy availableRecipes, a nie tylko z biezacego dnia.",
     "Nie proponuj zmian medycznych ani farmakologicznych.",
-    "Jesli nie proponujesz zmian, zwroc pusta tablice changes."
+    "Jesli nie proponujesz zmian, zwroc pusta tablice changes.",
+    forceChanges
+      ? "W TEJ odpowiedzi musisz zwrocic przynajmniej jedna poprawna zmiane w polu changes."
+      : "Gdy uzytkownik pyta o zamiane/zmiane planu, dodaj konkretne propozycje w changes."
   ].join("\n");
 
   try {

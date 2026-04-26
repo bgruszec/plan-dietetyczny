@@ -127,6 +127,7 @@ const ui = {
   shoppingOutput: document.getElementById("shoppingOutput"),
   consultPrompt: document.getElementById("consultPrompt"),
   consultAskBtn: document.getElementById("consultAskBtn"),
+  consultSuggestChangesBtn: document.getElementById("consultSuggestChangesBtn"),
   consultApplyAllBtn: document.getElementById("consultApplyAllBtn"),
   consultResponse: document.getElementById("consultResponse"),
   consultChanges: document.getElementById("consultChanges"),
@@ -212,6 +213,7 @@ function bindEvents() {
   ui.copyShoppingBtn.addEventListener("click", copyShoppingList);
   ui.shareShoppingBtn.addEventListener("click", shareShoppingList);
   ui.consultAskBtn.addEventListener("click", askDietAssistant);
+  ui.consultSuggestChangesBtn.addEventListener("click", askForPlanChanges);
   ui.consultApplyAllBtn.addEventListener("click", applyAllSuggestedChanges);
 
   document.addEventListener("click", (event) => {
@@ -581,12 +583,19 @@ function getPlanContextForAssistant() {
     recipeId: row[slot.id] || null,
     recipeTitle: row[slot.id] ? recipesById[row[slot.id]]?.title || null : null
   }));
+  const availableRecipes = recipes.map((r) => ({
+    id: r.id,
+    title: r.title,
+    kcal: r.kcal,
+    categories: r.categories || []
+  }));
   return {
     profileId: currentProfile,
     targetKcal: getTargetKcal(),
     selectedWeek: week,
     selectedDay: day,
-    meals
+    meals,
+    availableRecipes
   };
 }
 
@@ -596,8 +605,17 @@ async function askDietAssistant() {
     alert("Wpisz pytanie do asystenta.");
     return;
   }
+  await askDietAssistantWithMessage(message);
+}
 
+async function askForPlanChanges() {
+  const message = ui.consultPrompt.value.trim() || "Zaproponuj 2-3 konkretne zamiany przepisów dla aktualnie wybranego dnia, tak aby zachować podobną kalorykę i dopasowanie kategorii posiłków.";
+  await askDietAssistantWithMessage(message, { forceChanges: true });
+}
+
+async function askDietAssistantWithMessage(message, options = {}) {
   ui.consultAskBtn.disabled = true;
+  ui.consultSuggestChangesBtn.disabled = true;
   ui.consultResponse.textContent = "Przetwarzam...";
   ui.consultChanges.innerHTML = "";
 
@@ -607,7 +625,8 @@ async function askDietAssistant() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message,
-        context: getPlanContextForAssistant()
+        context: getPlanContextForAssistant(),
+        forceChanges: Boolean(options.forceChanges)
       })
     });
     if (!response.ok) throw new Error("Błąd połączenia z asystentem.");
@@ -618,11 +637,13 @@ async function askDietAssistant() {
 
     ui.consultResponse.textContent = answer;
     renderPendingChanges();
+    ui.consultPrompt.value = "";
   } catch (err) {
     ui.consultResponse.textContent = err.message || "Nie udało się połączyć z asystentem.";
     pendingDietChanges = [];
   } finally {
     ui.consultAskBtn.disabled = false;
+    ui.consultSuggestChangesBtn.disabled = false;
   }
 }
 
