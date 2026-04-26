@@ -21,6 +21,7 @@ app.post("/api/chat-diet", async (req, res) => {
   const message = String(req.body?.message || "").trim();
   const context = req.body?.context || {};
   const forceChanges = Boolean(req.body?.forceChanges);
+  const target = req.body?.target || null;
   if (!message) {
     res.status(400).json({ error: "Brak pytania." });
     return;
@@ -37,7 +38,10 @@ app.post("/api/chat-diet", async (req, res) => {
     "Jesli nie proponujesz zmian, zwroc pusta tablice changes.",
     forceChanges
       ? "W TEJ odpowiedzi musisz zwrocic przynajmniej jedna poprawna zmiane w polu changes."
-      : "Gdy uzytkownik pyta o zamiane/zmiane planu, dodaj konkretne propozycje w changes."
+      : "Gdy uzytkownik pyta o zamiane/zmiane planu, dodaj konkretne propozycje w changes.",
+    target?.slotId && Number.isInteger(Number(target?.week)) && Number.isInteger(Number(target?.day))
+      ? `UWAGA: Proponuj zmiany tylko dla week=${Number(target.week)}, day=${Number(target.day)}, slotId=${String(target.slotId)}.`
+      : "Brak sztywnego targetu slotu."
   ].join("\n");
 
   try {

@@ -134,8 +134,13 @@
       <section class="card app-section" id="section-consult">
         <h2>Konsultacje AI</h2>
         <p class="settings-note">To wsparcie informacyjne, nie porada medyczna. Przy chorobach i lekach skonsultuj się ze specjalistą.</p>
+        <div class="grid">
+          <label>Zmień przepis w slocie
+            <select id="consultTargetSlot"></select>
+          </label>
+        </div>
         <label>Pytanie do asystenta
-          <textarea id="consultPrompt" rows="4" placeholder="Np. Co zmienić, żeby zmniejszyć głód wieczorem i utrzymać kalorie?"></textarea>
+          <textarea id="consultPrompt" rows="4" placeholder="Np. chcę wersję szybszą, tańszą i bardziej sycącą"></textarea>
         </label>
         <div class="row">
           <button id="consultAskBtn" class="btn">Zapytaj</button>

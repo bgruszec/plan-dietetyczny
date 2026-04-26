@@ -126,6 +126,7 @@ const ui = {
   shareShoppingBtn: document.getElementById("shareShoppingBtn"),
   shoppingOutput: document.getElementById("shoppingOutput"),
   consultPrompt: document.getElementById("consultPrompt"),
+  consultTargetSlot: document.getElementById("consultTargetSlot"),
   consultAskBtn: document.getElementById("consultAskBtn"),
   consultSuggestChangesBtn: document.getElementById("consultSuggestChangesBtn"),
   consultApplyAllBtn: document.getElementById("consultApplyAllBtn"),
@@ -215,6 +216,8 @@ function bindEvents() {
   ui.consultAskBtn.addEventListener("click", askDietAssistant);
   ui.consultSuggestChangesBtn.addEventListener("click", askForPlanChanges);
   ui.consultApplyAllBtn.addEventListener("click", applyAllSuggestedChanges);
+  ui.weekSelect.addEventListener("change", refreshConsultTargetOptions);
+  ui.daySelect.addEventListener("change", refreshConsultTargetOptions);
 
   document.addEventListener("click", (event) => {
     const link = event.target.closest('a[href^="#recipe-"]');
@@ -274,6 +277,7 @@ async function switchProfile(profileId) {
   pendingDietChanges = [];
   ui.consultResponse.textContent = "";
   ui.consultChanges.innerHTML = "";
+  refreshConsultTargetOptions();
 
   renderPlanner();
   renderPlanTables();
@@ -599,6 +603,18 @@ function getPlanContextForAssistant() {
   };
 }
 
+function refreshConsultTargetOptions() {
+  const week = Number(ui.weekSelect.value || selectedWeek);
+  const day = Number(ui.daySelect.value || selectedDay);
+  const row = getPlannedDayEntry(week, day);
+
+  ui.consultTargetSlot.innerHTML = slotConfig.map((slot) => {
+    const recipeId = row[slot.id] || "";
+    const recipeTitle = recipeId ? (recipesById[recipeId]?.title || recipeId) : "brak przepisu";
+    return `<option value="${slot.id}">${slot.label}: ${escapeHtml(recipeTitle)}</option>`;
+  }).join("");
+}
+
 async function askDietAssistant() {
   const message = ui.consultPrompt.value.trim();
   if (!message) {
@@ -609,8 +625,29 @@ async function askDietAssistant() {
 }
 
 async function askForPlanChanges() {
-  const message = ui.consultPrompt.value.trim() || "Zaproponuj 2-3 konkretne zamiany przepisów dla aktualnie wybranego dnia, tak aby zachować podobną kalorykę i dopasowanie kategorii posiłków.";
-  await askDietAssistantWithMessage(message, { forceChanges: true });
+  const slotId = ui.consultTargetSlot.value;
+  const slot = slotConfig.find((s) => s.id === slotId);
+  const week = Number(ui.weekSelect.value || selectedWeek);
+  const day = Number(ui.daySelect.value || selectedDay);
+  const row = getPlannedDayEntry(week, day);
+  const currentRecipeId = row[slotId] || "";
+  const currentRecipeTitle = currentRecipeId ? (recipesById[currentRecipeId]?.title || currentRecipeId) : "brak";
+
+  const userIntent = ui.consultPrompt.value.trim() || "chcę lepiej dopasowaną wersję przepisu";
+  const message = [
+    `Zmień tylko 1 przepis w wybranym slocie.`,
+    `Tydzień: ${week}, dzień: ${day}, slot: ${slotId} (${slot?.label || slotId}).`,
+    `Aktualny przepis: ${currentRecipeId} - ${currentRecipeTitle}.`,
+    `Moje wymagania: ${userIntent}.`,
+    "Zaproponuj 1-3 realne podmiany i zwróć je w changes."
+  ].join("\n");
+
+  await askDietAssistantWithMessage(message, {
+    forceChanges: true,
+    targetSlot: slotId,
+    targetWeek: week,
+    targetDay: day
+  });
 }
 
 async function askDietAssistantWithMessage(message, options = {}) {
@@ -626,7 +663,12 @@ async function askDietAssistantWithMessage(message, options = {}) {
       body: JSON.stringify({
         message,
         context: getPlanContextForAssistant(),
-        forceChanges: Boolean(options.forceChanges)
+        forceChanges: Boolean(options.forceChanges),
+        target: options.targetSlot ? {
+          slotId: options.targetSlot,
+          week: options.targetWeek,
+          day: options.targetDay
+        } : null
       })
     });
     if (!response.ok) throw new Error("Błąd połączenia z asystentem.");
