@@ -120,6 +120,7 @@ const ui = {
   bmiNow: document.getElementById("bmiNow"),
   metricsTable: document.getElementById("metricsTable"),
   copyDayBtn: document.getElementById("copyDayBtn"),
+  autoPlanBtn: document.getElementById("autoPlanBtn"),
   shoppingScope: document.getElementById("shoppingScope"),
   shoppingWeekSelect: document.getElementById("shoppingWeekSelect"),
   shoppingDaySelect: document.getElementById("shoppingDaySelect"),
@@ -478,6 +479,7 @@ function bindEvents() {
   ui.recipeSearch.addEventListener("input", renderRecipes);
   ui.saveMetricBtn.addEventListener("click", saveMetric);
   ui.copyDayBtn.addEventListener("click", copySelectedDayPlan);
+  ui.autoPlanBtn.addEventListener("click", autoFillFullPlan);
   ui.saveSettingsBtn.addEventListener("click", saveSettings);
   ui.resetPlannerBtn.addEventListener("click", resetPlannerForCurrentProfile);
   ui.themeSelect.addEventListener("change", () => applyTheme(ui.themeSelect.value));
@@ -742,22 +744,23 @@ function renderPlanTables() {
 
     return `
       <h3>Tydzień ${w}</h3>
-      <div class="table-scroll">
+      <div class="table-scroll table-scroll--responsive">
         <table class="plan-table">
           <thead>
             <tr>
-              <th>Dzień</th><th>Śniadanie</th><th>Obiad</th><th>Kolacja</th><th>Przekąska</th><th>Suma kcal</th>
+              <th>Dzień</th>
+              ${slotConfig.map((s) => `<th>${s.label}</th>`).join("")}
+              <th>Suma kcal</th>
             </tr>
           </thead>
           <tbody>
             ${rows.map((row, idx) => `
-              <tr>
-                <td>${weekdayNames[idx] || `Dzień ${row.day}`}</td>
-                <td>${planRecipeCell(row.meal1)}</td>
-                <td>${planRecipeCell(row.meal2)}</td>
-                <td>${planRecipeCell(row.meal3)}</td>
-                <td>${planRecipeCell(row.snack)}</td>
-                <td>${totalForRow(row) || "-"}</td>
+              <tr class="plan-row">
+                <th scope="row" class="plan-day-cell" data-label="Dzień">${weekdayNames[idx] || `Dzień ${row.day}`}</th>
+                ${slotConfig.map((slot) => `
+                  <td class="plan-meal-cell" data-label="${slot.label}">${planRecipeCell(row[slot.id])}</td>
+                `).join("")}
+                <td class="plan-sum-cell" data-label="Suma kcal">${totalForRow(row) || "-"}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -778,6 +781,185 @@ function getPlannedDayEntry(week, day) {
     meal3: local.meal3 ?? base.meal3 ?? "",
     snack: local.snack ?? base.snack ?? ""
   };
+}
+
+function simplifyShoppingIngredientLine(line) {
+  let s = String(line || "").trim();
+  if (!s) return s;
+
+  s = s.replace(/\s+lub\s+do\s+smaku\.?/gi, "");
+  s = s.replace(/\s+lub\s+wg\s+uznania\.?/gi, "");
+  s = s.replace(/\s+do\s+smaku\.?/gi, "");
+  s = s.replace(/\s+wg\s+uznania\.?/gi, "");
+  s = s.replace(/\s+według\s+uznania\.?/gi, "");
+  s = s.replace(/\s+opcjonalnie\.?/gi, "");
+  s = s.replace(/\s+albo\s+wg\s+uznania\.?/gi, "");
+
+  s = s.replace(/\s+[-–—]\s+(?=\d)/g, " ");
+  s = s.replace(/\s+/g, " ").trim();
+
+  s = s.replace(/(\d+(?:[.,]\d+)?)\s+(g|kg|ml|l)\b/gi, (_, num, unit) => {
+    const n = String(num).replace(",", ".");
+    return `${n}${String(unit).toLowerCase()}`;
+  });
+
+  s = s.replace(/(\d+(?:[.,]\d+)?)\s+(szt\.?)\b/gi, (_, num) => {
+    const n = String(num).replace(",", ".");
+    return `${n} szt`;
+  });
+
+  return s.replace(/\s+/g, " ").trim();
+}
+
+const SHOPPING_CATEGORY_ORDER = [
+  "Warzywa i owoce",
+  "Mięso, drób i ryby",
+  "Nabiał, jaja i tofu",
+  "Pieczywo i wypieki",
+  "Kasze, ryż, makaron i strączki",
+  "Mąka, płatki i skrobie",
+  "Orzechy, nasiona i suszone owoce",
+  "Oleje, oliwy i tłuszcze",
+  "Napoje i buliony",
+  "Słodzidła, przyprawy i sosy",
+  "Inne"
+];
+
+const SHOPPING_CATEGORY_RULES = [
+  {
+    title: "Warzywa i owoce",
+    patterns: [
+      "fasolka szparagowa", "groszek zielony", "mix sałat", "sałata", "rukola", "roszponka",
+      "pomidor", "ogórek", "papryka", "cukinia", "brokuł", "marchew", "kapusta", "seler naciowy",
+      "kalafior", "szparag", "bakłażan", "dynia", "pieczark", "burak", "cebula", "czosnek",
+      "ziemniak", "batat", "topinambur", "por ", " rzodkiew", "kalarepa", "botwina", "szpinak",
+      "banan", "jabłk", "pomarańcz", "grejpfrut", "cytryn", "kiwi", "malin", "truskawk",
+      "borówk", "jagod", "wiśni", "czeresn", "winogron", "mango", "ananas", "śliwk", "sliwk",
+      "brzoskwin", "gruszk", "awokado", "kaki", "mandaryn", "melon", "arbuz", "granat"
+    ]
+  },
+  {
+    title: "Mięso, drób i ryby",
+    patterns: [
+      "mięso mielone", "mielone mięso", "pulpety", "pierś z kurczaka", "pierś z indyka",
+      "kurczak", "indyk", "wieprz", "wołow", "schab", "polędwic", "rostbef", "boczek", "szynk",
+      "mięso", "mielone drobiowe", "tuńczyk", "łosoś", "dorsz", "mintaj", "pstrąg", "śledź",
+      "makrel", "sandacz", "halibut", "morszczuk", "krewet", "dorsz", "drob", "indycze"
+    ]
+  },
+  {
+    title: "Nabiał, jaja i tofu",
+    patterns: [
+      "twaróg", "serek wiejski", "ser twarogowy", "skyr", "jogurt", "kefir", "mascarpone",
+      "ricotta", "mozzarella", "feta", "parmezan", "camembert", "ser żółty", "ser feta",
+      "śmietank", "śmietan", "serek śmietankowy", "jajk", "jajko", "mleko", "tofu", "halloumi",
+      "burrat", "gouda", "brie"
+    ]
+  },
+  {
+    title: "Pieczywo i wypieki",
+    patterns: [
+      "croissant", "bagiet", "bułka", "chleb", "tortilla", "wrap", "pita", "bajgiel", "grahamka",
+      "pieczywo", "ciabatta", "tost pełnoziarnisty"
+    ]
+  },
+  {
+    title: "Kasze, ryż, makaron i strączki",
+    patterns: [
+      "kasza gryczana", "kasza jaglana", "kasza pęczak", "kasza bulgur", "kasza jęczmienna",
+      "kasza owsiana", "komosa ryżowa", "quinoa", "ryż basmati", "ryż brązowy", "ryż biały",
+      "ryż dziki", "makaron pełnoziarnisty", "makaron gryczany", "makaron ", "ciecierzyca",
+      "soczewica", "groch", "fasola", "soja", "edamame", "kasza"
+    ]
+  },
+  {
+    title: "Mąka, płatki i skrobie",
+    patterns: [
+      "mąka", "płatki owsiane", "płatki jaglane", "płatki gryczane", "płatki ", "skrobia",
+      "bułka tarta", "kakao", "proszek do pieczenia"
+    ]
+  },
+  {
+    title: "Orzechy, nasiona i suszone owoce",
+    patterns: [
+      "masło orzechowe", "orzech", "migdał", "nerkowiec", "pistacj", "pekan", "arachid",
+      "sezam", "chia", "siemię lniane", "pestki", "wiórki kokosowe", "nasiona", "suszony",
+      "rodzynk", "figi suszone", "morele suszone"
+    ]
+  },
+  {
+    title: "Oleje, oliwy i tłuszcze",
+    patterns: [
+      "oliwa z oliwek", "oliwa", "olej rzepakowy", "olej kokosowy", "olej sezamowy", "olej lniany",
+      " olej ", "masło klarowane", "smalec", "ghee", " masło "
+    ]
+  },
+  {
+    title: "Napoje i buliony",
+    patterns: [
+      "napój sojowy", "napój owsiany", "napój migdałowy", "napój kokosowy", "bulion warzywny",
+      "bulion drobiowy", "bulion wołowy", "kostka bulion", "woda mineralna", "woda ",
+      "herbata", "kawa", "napar", "sok ", "smoothie"
+    ]
+  },
+  {
+    title: "Słodzidła, przyprawy i sosy",
+    patterns: [
+      "erytrol", "ksylitol", "stewia", "miód", "syrop klonowy", "syrop z agawy", "cukier",
+      "wanili", "cynamon", "kardamon", "curry", "kurkuma", "imbir mielony", "papryka słodka",
+      "papryka ostra", "ziele angielskie", "laur", "goździk", "majeranek", "tymianek", "oregano",
+      "bazylia", "natka", "koperek", "koper włoski", "chrzan", "musztard", "majonez", "ketchup",
+      "sos sojowy", "sos ", "ocet", "balsamiczny", "sól", "pieprz", "zioła", "bulion w proszku",
+      "przypraw", "ekstrakt waniliowy", "aromat"
+    ]
+  }
+];
+
+function normalizeShoppingText(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+}
+
+function categorizeShoppingIngredient(line) {
+  const n = normalizeShoppingText(line);
+  let bestTitle = "Inne";
+  let bestLen = 0;
+  for (const rule of SHOPPING_CATEGORY_RULES) {
+    for (const p of rule.patterns) {
+      const np = normalizeShoppingText(p);
+      if (!np.length) continue;
+      if (n.includes(np) && np.length >= bestLen) {
+        bestLen = np.length;
+        bestTitle = rule.title;
+      }
+    }
+  }
+  return bestTitle;
+}
+
+function formatShoppingListByCategory(title, ingredientLines) {
+  const groups = new Map();
+  for (const raw of ingredientLines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const cat = categorizeShoppingIngredient(line);
+    if (!groups.has(cat)) groups.set(cat, new Set());
+    groups.get(cat).add(line);
+  }
+
+  const parts = [title, ""];
+  for (const catTitle of SHOPPING_CATEGORY_ORDER) {
+    const set = groups.get(catTitle);
+    if (!set || !set.size) continue;
+    parts.push(catTitle);
+    [...set].sort((a, b) => a.localeCompare(b, "pl", { sensitivity: "base" })).forEach((item) => {
+      parts.push(`- ${item}`);
+    });
+    parts.push("");
+  }
+  return parts.join("\n").replace(/\n+$/, "");
 }
 
 function generateShoppingList() {
@@ -810,14 +992,16 @@ function generateShoppingList() {
   uniqueRecipeIds.forEach((id) => {
     const recipe = recipesById[id];
     if (!recipe) return;
-    recipe.ingredients.forEach((ing) => ingredients.push(ing));
+    (recipe.ingredients || []).forEach((ing) => {
+      const cleaned = simplifyShoppingIngredientLine(ing);
+      if (cleaned) ingredients.push(cleaned);
+    });
   });
 
   const title = scope === "week"
     ? `Lista zakupów - tydzień ${week}`
     : `Lista zakupów - tydzień ${week}, dzień ${day}`;
-  const body = ingredients.map((ing) => `- ${ing}`).join("\n");
-  ui.shoppingOutput.value = `${title}\n\n${body}`;
+  ui.shoppingOutput.value = formatShoppingListByCategory(title, ingredients);
 }
 
 async function copyShoppingList() {
@@ -855,6 +1039,101 @@ function canRecipeFitSlot(recipeId, slotId) {
     return categories.includes("sniadanie") || categories.includes("kolacja");
   }
   return categories.includes(slot.category);
+}
+
+function recipesAllowedForSlot(slotId) {
+  const slot = slotConfig.find((s) => s.id === slotId);
+  if (!slot) return [];
+  const allowedCategories = slot.category === "sniadanie" || slot.category === "kolacja"
+    ? ["sniadanie", "kolacja"]
+    : [slot.category];
+  return recipes.filter((r) =>
+    (r.categories || []).some((cat) => allowedCategories.includes(cat))
+  );
+}
+
+function pickRecipeForSlotGreedy(slotId, idealKcal, usageCount) {
+  const pool = recipesAllowedForSlot(slotId);
+  if (!pool.length) return "";
+  let best = pool[0];
+  let bestScore = Infinity;
+  for (const r of pool) {
+    const kcal = Number(r.kcal) || 0;
+    const fit = Math.abs(kcal - idealKcal);
+    const diversity = (usageCount[r.id] || 0) * 22;
+    const score = fit + diversity;
+    if (score < bestScore) {
+      bestScore = score;
+      best = r;
+    } else if (score === bestScore && r.id < best.id) {
+      best = r;
+    }
+  }
+  return best.id;
+}
+
+async function autoFillFullPlan() {
+  if (!recipes.length) {
+    alert("Brak przepisów — nie można ułożyć planu.");
+    return;
+  }
+  if (!confirm("Zastąpić plan wszystkich 28 dni automatycznym doborem przepisów? Obecne wybory w planerze zostaną nadpisane.")) {
+    return;
+  }
+
+  ui.autoPlanBtn.disabled = true;
+  const target = getTargetKcal();
+  const usage = {};
+  const slotOrder = ["meal2", "meal1", "meal3", "snack"];
+  const state = getPlannerState();
+
+  for (let week = 1; week <= 4; week++) {
+    for (let day = 1; day <= 7; day++) {
+      const key = `${week}-${day}`;
+      const row = { meal1: "", meal2: "", meal3: "", snack: "" };
+      let remaining = target;
+
+      for (let si = 0; si < slotOrder.length; si++) {
+        const slotId = slotOrder[si];
+        const slotsLeft = slotOrder.length - si;
+        const pool = recipesAllowedForSlot(slotId);
+        if (!pool.length) {
+          row[slotId] = "";
+          continue;
+        }
+        const ideal = Math.max(80, remaining / slotsLeft);
+        const id = pickRecipeForSlotGreedy(slotId, ideal, usage);
+        if (!id) {
+          row[slotId] = "";
+          continue;
+        }
+        row[slotId] = id;
+        remaining -= Number(recipesById[id]?.kcal) || 0;
+        usage[id] = (usage[id] || 0) + 1;
+      }
+
+      state[key] = row;
+    }
+  }
+
+  setPlannerState(state);
+
+  const saves = [];
+  for (let week = 1; week <= 4; week++) {
+    for (let day = 1; day <= 7; day++) {
+      const key = `${week}-${day}`;
+      saves.push(savePlannerEntryRemote(week, day, state[key]));
+    }
+  }
+  try {
+    await Promise.all(saves);
+  } finally {
+    ui.autoPlanBtn.disabled = false;
+  }
+
+  renderPlanner();
+  renderPlanTables();
+  alert("Ułożono plan na 28 dni (kategorie slotów + zbliżenie do celu kcal, z rotacją przepisów).");
 }
 
 function getFocusRecipeForAssistant() {
@@ -1253,26 +1532,30 @@ function renderMetrics() {
     return;
   }
 
+  const metricCols = [
+    { key: "date", label: "Data", val: (h) => h.date },
+    { key: "gender", label: "Płeć", val: (h) => h.gender },
+    { key: "age", label: "Wiek", val: (h) => h.age ?? "" },
+    { key: "weight", label: "Waga", val: (h) => h.weight ?? "" },
+    { key: "height", label: "Wzrost", val: (h) => h.height ?? "" },
+    { key: "waist", label: "Talia", val: (h) => h.waist ?? "" },
+    { key: "chest", label: "Klatka/Biust", val: (h) => h.chest ?? "" },
+    { key: "hips", label: "Biodra", val: (h) => h.hips ?? "" },
+    { key: "bmi", label: "BMI", val: (h) => `${h.bmi} (${bmiLabel(h.bmi)})` }
+  ];
+
   ui.metricsTable.innerHTML = `
-    <div class="table-scroll">
+    <div class="table-scroll table-scroll--responsive">
       <table class="metric-table">
         <thead>
           <tr>
-            <th>Data</th><th>Płeć</th><th>Wiek</th><th>Waga</th><th>Wzrost</th><th>Talia</th><th>Klatka/Biust</th><th>Biodra</th><th>BMI</th>
+            ${metricCols.map((c) => `<th>${c.label}</th>`).join("")}
           </tr>
         </thead>
         <tbody>
           ${history.map((h) => `
-            <tr>
-              <td>${h.date}</td>
-              <td>${h.gender}</td>
-              <td>${h.age ?? ""}</td>
-              <td>${h.weight ?? ""}</td>
-              <td>${h.height ?? ""}</td>
-              <td>${h.waist ?? ""}</td>
-              <td>${h.chest ?? ""}</td>
-              <td>${h.hips ?? ""}</td>
-              <td>${h.bmi} (${bmiLabel(h.bmi)})</td>
+            <tr class="metric-row">
+              ${metricCols.map((c) => `<td data-label="${c.label}">${c.val(h)}</td>`).join("")}
             </tr>
           `).join("")}
         </tbody>
