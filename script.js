@@ -10,6 +10,16 @@ const slotConfig = [
 ];
 
 const weekdayNames = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"];
+const fallbackRecipeCategories = {
+  R1: ["sniadanie"], R5: ["sniadanie"], R9: ["sniadanie"], R13: ["sniadanie"], R17: ["sniadanie"],
+  R21: ["sniadanie"], R25: ["sniadanie"], R29: ["sniadanie"], R32: ["sniadanie"], R33: ["sniadanie"],
+  R2: ["obiad"], R6: ["obiad"], R10: ["obiad"], R14: ["obiad"], R18: ["obiad"],
+  R22: ["obiad"], R26: ["obiad"], R30: ["obiad"], R31: ["obiad"],
+  R3: ["kolacja"], R7: ["kolacja"], R11: ["kolacja"], R15: ["kolacja"], R19: ["kolacja"],
+  R23: ["kolacja"], R27: ["kolacja"], R34: ["kolacja"], R35: ["kolacja"],
+  R4: ["przekaska"], R8: ["przekaska"], R12: ["przekaska"], R16: ["przekaska"],
+  R20: ["przekaska"], R24: ["przekaska"], R28: ["przekaska"]
+};
 
 const substitutionGroups = [
   ["pomidor","ogórek","papryka","cukinia","brokuł","marchew","rzodkiewka","kapusta","seler naciowy","kalafior","szparagi","bakłażan","dynia","pieczarki"],
@@ -250,7 +260,9 @@ function addCategoriesFromPlan(list, defaultPlan) {
   });
 
   return list.map((r) => {
-    const cats = Array.from(map[r.id] || []);
+    const fromPlan = Array.from(map[r.id] || []);
+    const fromFallback = fallbackRecipeCategories[r.id] || [];
+    const cats = Array.from(new Set([...fromPlan, ...fromFallback]));
     if (cats.length) return { ...r, categories: cats };
     if (Array.isArray(r.categories) && r.categories.length) return r;
     return { ...r, categories: [] };
