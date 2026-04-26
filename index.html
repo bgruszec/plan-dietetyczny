@@ -2,23 +2,29 @@
 <html lang="pl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1020" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Plan dietetyczny</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body data-theme="dark">
+    <div class="app-root">
     <header class="topbar">
       <div>
         <h1>Plan dietetyczny</h1>
         <p id="heroKcal">Cel: - kcal</p>
       </div>
-      <label>
-        Profil
-        <select id="profileSelect"></select>
-      </label>
-      <div class="auth-chip">
-        <span id="authStatus">Niezalogowany</span>
-        <button id="logoutBtn" type="button">Wyloguj</button>
+      <div class="topbar-trail hidden" id="topbarTrail">
+        <label>
+          Profil
+          <select id="profileSelect"></select>
+        </label>
+        <div class="auth-chip hidden" id="authChip">
+          <span id="authStatus"></span>
+          <button id="logoutBtn" type="button">Wyloguj</button>
+        </div>
       </div>
     </header>
 
@@ -39,6 +45,7 @@
       <p id="authMessage" class="settings-note"></p>
     </section>
 
+    <div class="app-main-area">
     <nav class="main-menu app-shell" aria-label="Nawigacja aplikacji">
       <button class="menu-btn is-active" data-section="metrics" aria-selected="true">
         <span class="menu-btn-icon">PM</span>
@@ -155,35 +162,21 @@
       <section class="card app-section" id="section-consult">
         <h2>Konsultacje AI</h2>
         <p class="settings-note">To wsparcie informacyjne, nie porada medyczna. Przy chorobach i lekach skonsultuj się ze specjalistą.</p>
-        <div class="grid">
-          <label>Tydzień celu
-            <select id="consultTargetWeek"></select>
-          </label>
-          <label>Dzień celu
-            <select id="consultTargetDay"></select>
-          </label>
-          <label>Zmień przepis w slocie
-            <select id="consultTargetSlot"></select>
-          </label>
-          <label>Nowy przepis (pełna lista)
-            <select id="consultTargetRecipe"></select>
-          </label>
-        </div>
+        <p class="settings-note">Wybierz przepis z bazy — asystent odpowiada w jego kontekście. Możesz poprosić o wariant (np. szybszy, tańszy); po zaakceptowaniu propozycji zaktualizujemy ten przepis w aplikacji (zapis lokalny dla profilu).</p>
+        <label>Przepis
+          <select id="consultTargetRecipe"></select>
+        </label>
         <input id="consultRecipeSearch" type="text" placeholder="Filtruj przepisy po nazwie lub ID..." />
-        <p id="consultManualPreview" class="settings-note"></p>
-        <div class="row">
-          <button id="applyManualRecipeChangeBtn" type="button">Zastosuj wybrany przepis</button>
-        </div>
-        <label>Pytanie do asystenta
-          <textarea id="consultPrompt" rows="4" placeholder="Np. chcę wersję szybszą, tańszą i bardziej sycącą"></textarea>
+        <div id="consultRecipeContext" class="recipe-card consult-context"></div>
+        <label>Pytanie lub oczekiwania wobec tego przepisu
+          <textarea id="consultPrompt" rows="4" placeholder="Np. zrób wersję z mniejszą ilością jajek i więcej warzyw, bez zmiany kaloryczności o więcej niż 10%"></textarea>
         </label>
         <div class="row">
-          <button id="consultAskBtn" class="btn">Zapytaj</button>
-          <button id="consultSuggestChangesBtn" type="button">Zaproponuj zmiany planu</button>
-          <button id="consultApplyAllBtn" type="button">Zastosuj wszystkie zmiany</button>
+          <button id="consultAskBtn" class="btn" type="button">Zapytaj</button>
+          <button id="consultProposeRecipeBtn" type="button">Zaproponuj zmiany w przepisie</button>
         </div>
         <div id="consultResponse" class="recipe-card"></div>
-        <div id="consultChanges"></div>
+        <div id="consultRecipePatch"></div>
       </section>
 
       <section class="card app-section" id="section-settings">
@@ -206,7 +199,9 @@
         <p class="settings-note">Ustawienia dotyczą aktualnie wybranego profilu.</p>
       </section>
     </main>
+    </div>
 
     <script type="module" src="script.js"></script>
+    </div>
   </body>
 </html>

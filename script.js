@@ -128,12 +128,11 @@ const ui = {
   shareShoppingBtn: document.getElementById("shareShoppingBtn"),
   shoppingOutput: document.getElementById("shoppingOutput"),
   consultPrompt: document.getElementById("consultPrompt"),
-  consultTargetSlot: document.getElementById("consultTargetSlot"),
   consultAskBtn: document.getElementById("consultAskBtn"),
-  consultSuggestChangesBtn: document.getElementById("consultSuggestChangesBtn"),
-  consultApplyAllBtn: document.getElementById("consultApplyAllBtn"),
+  consultProposeRecipeBtn: document.getElementById("consultProposeRecipeBtn"),
   consultResponse: document.getElementById("consultResponse"),
-  consultChanges: document.getElementById("consultChanges"),
+  consultRecipeContext: document.getElementById("consultRecipeContext"),
+  consultRecipePatch: document.getElementById("consultRecipePatch"),
 
   themeSelect: document.getElementById("themeSelect"),
   targetKcalInput: document.getElementById("targetKcalInput"),
@@ -149,12 +148,10 @@ const ui = {
   registerBtn: document.getElementById("registerBtn"),
   logoutBtn: document.getElementById("logoutBtn"),
   appShell: Array.from(document.querySelectorAll(".app-shell")),
-  consultTargetWeek: document.getElementById("consultTargetWeek"),
-  consultTargetDay: document.getElementById("consultTargetDay"),
+  topbarTrail: document.getElementById("topbarTrail"),
+  authChip: document.getElementById("authChip"),
   consultTargetRecipe: document.getElementById("consultTargetRecipe"),
-  consultRecipeSearch: document.getElementById("consultRecipeSearch"),
-  consultManualPreview: document.getElementById("consultManualPreview"),
-  applyManualRecipeChangeBtn: document.getElementById("applyManualRecipeChangeBtn")
+  consultRecipeSearch: document.getElementById("consultRecipeSearch")
 };
 
 let profiles = [];
@@ -164,7 +161,7 @@ let recipesById = {};
 let planData = { targetKcal: 2100, defaultPlan: { "1": [], "2": [], "3": [], "4": [] } };
 let selectedWeek = 1;
 let selectedDay = 1;
-let pendingDietChanges = [];
+let pendingRecipePatch = null;
 let supabase = null;
 let authUser = null;
 
@@ -215,9 +212,11 @@ async function restoreSessionAndBootstrap() {
 
 function setAuthUi(user, message = "", forceShowApp = false) {
   const signed = Boolean(user);
-  ui.authStatus.textContent = signed ? `Zalogowany: ${user.email}` : "Niezalogowany";
+  const showTrail = signed || forceShowApp;
   ui.authMessage.textContent = message;
-  ui.logoutBtn.disabled = !signed;
+  ui.authStatus.textContent = signed ? `Zalogowany: ${user.email}` : "";
+  ui.topbarTrail.classList.toggle("hidden", !showTrail);
+  ui.authChip.classList.toggle("hidden", !signed);
   ui.appShell.forEach((el) => el.classList.toggle("hidden", !signed && !forceShowApp));
   ui.authCard.classList.toggle("hidden", signed || forceShowApp);
 }
@@ -251,7 +250,7 @@ async function loginUser() {
     setAuthUi(authUser, `Błąd logowania: ${error.message}`);
     return;
   }
-  authUser = data.user;
+  authUser = data.session?.user ?? data.user ?? null;
   setAuthUi(authUser, "Zalogowano.");
   await switchProfile(currentProfile);
   await pullRemoteState();
@@ -382,16 +381,49 @@ async function saveMetricsRemote(entry) {
   }, { onConflict: "user_id,profile_id,date" });
 }
 
-async function saveConsultHistory(question, answer, changes) {
+async function saveConsultHistory(question, answer, payload) {
   if (!supabase || !authUser) return;
   await supabase.from("consult_history").insert({
     user_id: authUser.id,
     profile_id: currentProfile,
     question,
     answer,
-    changes_json: changes || [],
+    changes_json: payload || [],
     created_at: new Date().toISOString()
   });
+}
+
+function recipeOverridesStorageKey() {
+  return `${APP_KEY}-recipe-overrides-${currentProfile}`;
+}
+
+function loadRecipeOverrides() {
+  try {
+    const raw = localStorage.getItem(recipeOverridesStorageKey());
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveRecipeOverrides(map) {
+  localStorage.setItem(recipeOverridesStorageKey(), JSON.stringify(map));
+}
+
+function applyStoredRecipeOverrides(rawRecipes) {
+  const overrides = loadRecipeOverrides();
+  return rawRecipes.map((r) => mergeRecipeFromStored(r, overrides[r.id]));
+}
+
+function mergeRecipeFromStored(base, stored) {
+  if (!stored) return { ...base };
+  return {
+    ...base,
+    ...(stored.title != null ? { title: stored.title } : {}),
+    ...(stored.kcal != null ? { kcal: stored.kcal } : {}),
+    ...(Array.isArray(stored.ingredients) ? { ingredients: [...stored.ingredients] } : {}),
+    ...(Array.isArray(stored.steps) ? { steps: [...stored.steps] } : {})
+  };
 }
 
 function fillWeekDaySelectors() {
@@ -414,10 +446,6 @@ function initShoppingSelectors() {
   ui.shoppingDaySelect.innerHTML = ui.daySelect.innerHTML;
   ui.shoppingWeekSelect.value = ui.weekSelect.value;
   ui.shoppingDaySelect.value = ui.daySelect.value;
-  ui.consultTargetWeek.innerHTML = ui.weekSelect.innerHTML;
-  ui.consultTargetDay.innerHTML = ui.daySelect.innerHTML;
-  ui.consultTargetWeek.value = ui.weekSelect.value;
-  ui.consultTargetDay.value = ui.daySelect.value;
 }
 
 function bindEvents() {
@@ -435,18 +463,15 @@ function bindEvents() {
   ui.weekSelect.addEventListener("change", () => {
     selectedWeek = Number(ui.weekSelect.value);
     renderPlanner();
-    refreshConsultTargetOptions();
   });
 
   ui.daySelect.addEventListener("change", () => {
     selectedDay = Number(ui.daySelect.value);
     ui.shoppingDaySelect.value = ui.daySelect.value;
-    ui.consultTargetDay.value = ui.daySelect.value;
     renderPlanner();
   });
   ui.weekSelect.addEventListener("change", () => {
     ui.shoppingWeekSelect.value = ui.weekSelect.value;
-    ui.consultTargetWeek.value = ui.weekSelect.value;
   });
 
   ui.weekFilter.addEventListener("change", renderPlanTables);
@@ -460,26 +485,13 @@ function bindEvents() {
   ui.copyShoppingBtn.addEventListener("click", copyShoppingList);
   ui.shareShoppingBtn.addEventListener("click", shareShoppingList);
   ui.consultAskBtn.addEventListener("click", askDietAssistant);
-  ui.consultSuggestChangesBtn.addEventListener("click", askForPlanChanges);
-  ui.consultApplyAllBtn.addEventListener("click", applyAllSuggestedChanges);
-  ui.consultTargetSlot.addEventListener("change", renderManualChangePreview);
-  ui.consultTargetWeek.addEventListener("change", () => {
-    ui.weekSelect.value = ui.consultTargetWeek.value;
-    selectedWeek = Number(ui.consultTargetWeek.value);
-    renderPlanner();
-    refreshConsultTargetOptions();
+  ui.consultProposeRecipeBtn.addEventListener("click", askForRecipePatchProposal);
+  ui.consultTargetRecipe.addEventListener("change", () => {
+    renderConsultRecipeContext();
+    pendingRecipePatch = null;
+    renderPendingRecipePatch();
   });
-  ui.consultTargetDay.addEventListener("change", () => {
-    ui.daySelect.value = ui.consultTargetDay.value;
-    selectedDay = Number(ui.consultTargetDay.value);
-    renderPlanner();
-    refreshConsultTargetOptions();
-  });
-  ui.consultTargetRecipe.addEventListener("change", renderManualChangePreview);
   ui.consultRecipeSearch.addEventListener("input", refreshConsultRecipeOptions);
-  ui.applyManualRecipeChangeBtn.addEventListener("click", applyManualRecipeChange);
-  ui.weekSelect.addEventListener("change", refreshConsultTargetOptions);
-  ui.daySelect.addEventListener("change", refreshConsultTargetOptions);
 
   document.addEventListener("click", (event) => {
     const link = event.target.closest('a[href^="#recipe-"]');
@@ -513,12 +525,14 @@ async function switchProfile(profileId) {
       fetch(`plans/${profileId}/plan.json`)
     ]);
     if (!rRes.ok || !pRes.ok) throw new Error("Brak plików profilu");
-    recipes = await rRes.json();
+    const rawRecipes = await rRes.json();
     planData = await pRes.json();
+    recipes = applyStoredRecipeOverrides(rawRecipes);
   } catch {
     // fallback: żeby nie było pustki
     const r = await fetch("recipes.json");
-    recipes = await r.json();
+    const rawRecipes = await r.json();
+    recipes = applyStoredRecipeOverrides(rawRecipes);
     planData = { targetKcal: 2100, defaultPlan: { "1": [], "2": [], "3": [], "4": [] } };
   }
 
@@ -535,13 +549,12 @@ async function switchProfile(profileId) {
   fillSettingsFromState();
   ui.shoppingWeekSelect.value = "1";
   ui.shoppingDaySelect.value = "1";
-  ui.consultTargetWeek.value = "1";
-  ui.consultTargetDay.value = "1";
   ui.shoppingOutput.value = "";
-  pendingDietChanges = [];
+  pendingRecipePatch = null;
   ui.consultResponse.textContent = "";
-  ui.consultChanges.innerHTML = "";
-  refreshConsultTargetOptions();
+  ui.consultRecipePatch.innerHTML = "";
+  refreshConsultRecipeOptions();
+  renderConsultRecipeContext();
 
   renderPlanner();
   renderPlanTables();
@@ -844,97 +857,49 @@ function canRecipeFitSlot(recipeId, slotId) {
   return categories.includes(slot.category);
 }
 
-function getPlanContextForAssistant() {
-  const week = Number(ui.weekSelect.value);
-  const day = Number(ui.daySelect.value);
-  const row = getPlannedDayEntry(week, day);
-  const meals = slotConfig.map((slot) => ({
-    slotId: slot.id,
-    slotLabel: slot.label,
-    recipeId: row[slot.id] || null,
-    recipeTitle: row[slot.id] ? recipesById[row[slot.id]]?.title || null : null
-  }));
-  const availableRecipes = recipes.map((r) => ({
+function getFocusRecipeForAssistant() {
+  const id = ui.consultTargetRecipe.value;
+  const r = recipesById[id];
+  if (!r) return null;
+  return {
     id: r.id,
     title: r.title,
     kcal: r.kcal,
+    ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
+    steps: Array.isArray(r.steps) ? r.steps : [],
     categories: r.categories || []
-  }));
-  return {
-    profileId: currentProfile,
-    targetKcal: getTargetKcal(),
-    selectedWeek: week,
-    selectedDay: day,
-    meals,
-    availableRecipes
   };
 }
 
-function refreshConsultTargetOptions() {
-  const week = Number(ui.weekSelect.value || selectedWeek);
-  const day = Number(ui.daySelect.value || selectedDay);
-  const row = getPlannedDayEntry(week, day);
-
-  ui.consultTargetSlot.innerHTML = slotConfig.map((slot) => {
-    const recipeId = row[slot.id] || "";
-    const recipeTitle = recipeId ? (recipesById[recipeId]?.title || recipeId) : "brak przepisu";
-    return `<option value="${slot.id}">${slot.label}: ${escapeHtml(recipeTitle)}</option>`;
-  }).join("");
-  ui.consultTargetWeek.value = String(week);
-  ui.consultTargetDay.value = String(day);
-  refreshConsultRecipeOptions();
-  renderManualChangePreview();
+function renderConsultRecipeContext() {
+  const r = recipesById[ui.consultTargetRecipe.value];
+  if (!r) {
+    ui.consultRecipeContext.innerHTML = "<p>Wybierz przepis z listy.</p>";
+    return;
+  }
+  ui.consultRecipeContext.innerHTML = `
+    <h3>${escapeHtml(r.title)}</h3>
+    <p class="recipe-meta">${r.kcal} kcal</p>
+    <p><strong>Składniki</strong></p>
+    <ul>${(r.ingredients || []).map((ing) => `<li>${escapeHtml(ing)}</li>`).join("")}</ul>
+    <p><strong>Wykonanie</strong></p>
+    <ol>${(r.steps || []).map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol>
+  `;
 }
 
 function refreshConsultRecipeOptions() {
   const q = ui.consultRecipeSearch.value.trim().toLowerCase();
   const filtered = recipes.filter((r) => `${r.id} ${r.title}`.toLowerCase().includes(q));
+  const prev = ui.consultTargetRecipe.value;
   ui.consultTargetRecipe.innerHTML = filtered
     .map((r) => `<option value="${r.id}">${r.id} - ${escapeHtml(r.title)} (${r.kcal} kcal)</option>`)
     .join("");
-  if (!ui.consultTargetRecipe.value && filtered[0]) {
+  if (filtered.some((r) => r.id === prev)) {
+    ui.consultTargetRecipe.value = prev;
+  } else if (filtered[0]) {
     ui.consultTargetRecipe.value = filtered[0].id;
   }
-}
-
-function renderManualChangePreview() {
-  const week = Number(ui.consultTargetWeek.value || selectedWeek);
-  const day = Number(ui.consultTargetDay.value || selectedDay);
-  const slotId = ui.consultTargetSlot.value;
-  const nextId = ui.consultTargetRecipe.value;
-  const row = getPlannedDayEntry(week, day);
-  const currentId = row[slotId] || "-";
-  const currentName = currentId === "-" ? "brak" : (recipesById[currentId]?.title || currentId);
-  const nextName = nextId ? (recipesById[nextId]?.title || nextId) : "brak";
-  ui.consultManualPreview.textContent = `Podmiana: ${currentName} (${currentId}) -> ${nextName} (${nextId || "-"})`;
-}
-
-async function applyManualRecipeChange() {
-  const week = Number(ui.consultTargetWeek.value || selectedWeek);
-  const day = Number(ui.consultTargetDay.value || selectedDay);
-  const slotId = ui.consultTargetSlot.value;
-  const recipeId = ui.consultTargetRecipe.value;
-  if (!recipeId) return;
-  if (!canRecipeFitSlot(recipeId, slotId)) {
-    alert("Ten przepis nie pasuje do wybranego slotu.");
-    return;
-  }
-  const state = getPlannerState();
-  const key = `${week}-${day}`;
-  const base = getPlannedDayEntry(week, day);
-  const row = { ...base, ...(state[key] || {}) };
-  row[slotId] = recipeId;
-  state[key] = row;
-  setPlannerState(state);
-  await savePlannerEntryRemote(week, day, row);
-  if (Number(ui.weekSelect.value) === week && Number(ui.daySelect.value) === day) {
-    selectedWeek = week;
-    selectedDay = day;
-    renderPlanner();
-  }
-  renderPlanTables();
-  refreshConsultTargetOptions();
-  alert("Zmieniono przepis.");
+  renderConsultRecipeContext();
 }
 
 async function askDietAssistant() {
@@ -943,40 +908,33 @@ async function askDietAssistant() {
     alert("Wpisz pytanie do asystenta.");
     return;
   }
-  await askDietAssistantWithMessage(message);
+  await askDietAssistantWithMessage(message, { forceRecipePatch: false });
 }
 
-async function askForPlanChanges() {
-  const slotId = ui.consultTargetSlot.value;
-  const slot = slotConfig.find((s) => s.id === slotId);
-  const week = Number(ui.consultTargetWeek.value || selectedWeek);
-  const day = Number(ui.consultTargetDay.value || selectedDay);
-  const row = getPlannedDayEntry(week, day);
-  const currentRecipeId = row[slotId] || "";
-  const currentRecipeTitle = currentRecipeId ? (recipesById[currentRecipeId]?.title || currentRecipeId) : "brak";
-
-  const userIntent = ui.consultPrompt.value.trim() || "chcę lepiej dopasowaną wersję przepisu";
-  const message = [
-    `Zmień tylko 1 przepis w wybranym slocie.`,
-    `Tydzień: ${week}, dzień: ${day}, slot: ${slotId} (${slot?.label || slotId}).`,
-    `Aktualny przepis: ${currentRecipeId} - ${currentRecipeTitle}.`,
-    `Moje wymagania: ${userIntent}.`,
-    "Zaproponuj 1-3 realne podmiany i zwróć je w changes."
-  ].join("\n");
-
-  await askDietAssistantWithMessage(message, {
-    forceChanges: true,
-    targetSlot: slotId,
-    targetWeek: week,
-    targetDay: day
-  });
+async function askForRecipePatchProposal() {
+  const focus = getFocusRecipeForAssistant();
+  if (!focus) {
+    alert("Wybierz przepis z listy.");
+    return;
+  }
+  const userIntent = ui.consultPrompt.value.trim()
+    || "Zaproponuj zmiany w składnikach i krokach zgodnie z typową dietą redukcyjną, zachowując sens posiłku.";
+  const message = `Pracujesz wyłącznie nad przepisem ${focus.id} (${focus.title}). ${userIntent}`;
+  await askDietAssistantWithMessage(message, { forceRecipePatch: true });
 }
 
 async function askDietAssistantWithMessage(message, options = {}) {
+  const focus = getFocusRecipeForAssistant();
+  if (!focus) {
+    alert("Wybierz przepis z listy.");
+    return;
+  }
+
   ui.consultAskBtn.disabled = true;
-  ui.consultSuggestChangesBtn.disabled = true;
+  ui.consultProposeRecipeBtn.disabled = true;
   ui.consultResponse.textContent = "Przetwarzam...";
-  ui.consultChanges.innerHTML = "";
+  ui.consultRecipePatch.innerHTML = "";
+  pendingRecipePatch = null;
 
   try {
     const response = await fetch("/api/chat-diet", {
@@ -984,104 +942,83 @@ async function askDietAssistantWithMessage(message, options = {}) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message,
-        context: getPlanContextForAssistant(),
-        forceChanges: Boolean(options.forceChanges),
-        target: options.targetSlot ? {
-          slotId: options.targetSlot,
-          week: options.targetWeek,
-          day: options.targetDay
-        } : null
+        mode: "recipe",
+        context: { focusRecipe: focus },
+        forceRecipePatch: Boolean(options.forceRecipePatch)
       })
     });
     if (!response.ok) throw new Error("Błąd połączenia z asystentem.");
 
     const data = await response.json();
     const answer = data.answer || "Brak odpowiedzi.";
-    pendingDietChanges = Array.isArray(data.changes) ? data.changes : [];
+    pendingRecipePatch = data.recipePatch || null;
 
-    ui.consultResponse.textContent = answer;
-    renderPendingChanges();
-    await saveConsultHistory(message, answer, pendingDietChanges);
+    let shown = answer;
+    if (options.forceRecipePatch && !pendingRecipePatch) {
+      shown += "\n\n(Uwaga: nie udało się odczytać propozycji zmian przepisu — doprecyzuj pytanie lub spróbuj ponownie.)";
+    }
+    ui.consultResponse.textContent = shown;
+    renderPendingRecipePatch();
+    await saveConsultHistory(message, answer, [{ kind: "recipe_patch", recipeId: focus.id, patch: pendingRecipePatch }]);
     ui.consultPrompt.value = "";
   } catch (err) {
     ui.consultResponse.textContent = err.message || "Nie udało się połączyć z asystentem.";
-    pendingDietChanges = [];
+    pendingRecipePatch = null;
+    renderPendingRecipePatch();
   } finally {
     ui.consultAskBtn.disabled = false;
-    ui.consultSuggestChangesBtn.disabled = false;
+    ui.consultProposeRecipeBtn.disabled = false;
   }
 }
 
-function renderPendingChanges() {
-  if (!pendingDietChanges.length) {
-    ui.consultChanges.innerHTML = "<p>Brak proponowanych zmian w planie.</p>";
+function renderPendingRecipePatch() {
+  if (!pendingRecipePatch) {
+    ui.consultRecipePatch.innerHTML = "";
     return;
   }
-
-  ui.consultChanges.innerHTML = pendingDietChanges.map((change, idx) => {
-    const recipe = recipesById[change.recipeId];
-    const recipeTitle = recipe ? recipe.title : change.recipeId;
-    return `
-      <div class="change-item">
-        <p><strong>Tydzień ${change.week}, dzień ${change.day}, slot ${change.slotId}</strong></p>
-        <p>Nowy przepis: ${escapeHtml(recipeTitle || "-")} (${escapeHtml(change.recipeId || "-")})</p>
-        <p>${escapeHtml(change.reason || "")}</p>
-        <button type="button" data-change-idx="${idx}" class="apply-one-change-btn">Zastosuj</button>
-      </div>
-    `;
-  }).join("");
-
-  ui.consultChanges.querySelectorAll(".apply-one-change-btn").forEach((btn) => {
-    btn.addEventListener("click", () => applySuggestedChange(Number(btn.dataset.changeIdx)));
-  });
+  const { title, kcal, ingredients, steps, reason, recipeId } = pendingRecipePatch;
+  let html = `<div class="change-item"><p><strong>Propozycja zmian w przepisie ${escapeHtml(recipeId || "")}</strong></p>`;
+  if (reason) html += `<p>${escapeHtml(reason)}</p>`;
+  if (title) html += `<p><strong>Tytuł:</strong> ${escapeHtml(title)}</p>`;
+  if (kcal != null) html += `<p><strong>kcal:</strong> ${escapeHtml(String(kcal))}</p>`;
+  if (ingredients?.length) {
+    html += `<p><strong>Składniki (propozycja)</strong></p><ul>${ingredients.map((i) => `<li>${escapeHtml(i)}</li>`).join("")}</ul>`;
+  }
+  if (steps?.length) {
+    html += `<p><strong>Wykonanie (propozycja)</strong></p><ol>${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol>`;
+  }
+  html += `<p><button type="button" id="applyRecipePatchBtn" class="btn">Zastosuj w przepisie</button></p></div>`;
+  ui.consultRecipePatch.innerHTML = html;
+  document.getElementById("applyRecipePatchBtn")?.addEventListener("click", applyPendingRecipePatchToRecipe);
 }
 
-async function applySuggestedChange(index) {
-  const change = pendingDietChanges[index];
-  if (!change) return;
-  if (!canRecipeFitSlot(change.recipeId, change.slotId)) {
-    alert(`Zmiana pominięta: ${change.recipeId} nie pasuje do ${change.slotId}.`);
-    return;
-  }
+function applyPendingRecipePatchToRecipe() {
+  if (!pendingRecipePatch?.recipeId) return;
+  const id = pendingRecipePatch.recipeId;
+  const base = recipesById[id];
+  if (!base) return;
 
-  const state = getPlannerState();
-  const key = `${change.week}-${change.day}`;
-  const base = getPlannedDayEntry(change.week, change.day);
-  const row = { ...base, ...(state[key] || {}) };
-  row[change.slotId] = change.recipeId;
-  state[key] = row;
-  setPlannerState(state);
-  await savePlannerEntryRemote(change.week, change.day, row);
+  const overrides = loadRecipeOverrides();
+  const prev = overrides[id] || {};
+  const nextStore = { ...prev };
+  if (pendingRecipePatch.title) nextStore.title = pendingRecipePatch.title;
+  if (pendingRecipePatch.kcal != null) nextStore.kcal = pendingRecipePatch.kcal;
+  if (pendingRecipePatch.ingredients) nextStore.ingredients = pendingRecipePatch.ingredients;
+  if (pendingRecipePatch.steps) nextStore.steps = pendingRecipePatch.steps;
+  overrides[id] = nextStore;
+  saveRecipeOverrides(overrides);
+
+  const updated = mergeRecipeFromStored(base, nextStore);
+  recipes = recipes.map((r) => (r.id === id ? updated : r));
+  recipesById[id] = updated;
+
+  pendingRecipePatch = null;
+  renderPendingRecipePatch();
+  renderConsultRecipeContext();
+  renderRecipes();
   renderPlanner();
   renderPlanTables();
-  renderPendingChanges();
-}
-
-async function applyAllSuggestedChanges() {
-  if (!pendingDietChanges.length) {
-    alert("Brak zmian do zastosowania.");
-    return;
-  }
-
-  let applied = 0;
-  for (let idx = 0; idx < pendingDietChanges.length; idx += 1) {
-    const change = pendingDietChanges[idx];
-    if (!change) continue;
-    if (!canRecipeFitSlot(change.recipeId, change.slotId)) continue;
-    const state = getPlannerState();
-    const key = `${change.week}-${change.day}`;
-    const base = getPlannedDayEntry(change.week, change.day);
-    const row = { ...base, ...(state[key] || {}) };
-    row[change.slotId] = change.recipeId;
-    state[key] = row;
-    setPlannerState(state);
-    await savePlannerEntryRemote(change.week, change.day, row);
-    applied += 1;
-  }
-
-  renderPlanner();
-  renderPlanTables();
-  alert(`Zastosowano zmian: ${applied}.`);
+  alert("Zaktualizowano przepis w aplikacji (zapis lokalny dla tego profilu).");
 }
 
 function planRecipeCell(id) {
@@ -1419,6 +1356,10 @@ function applyTheme(theme) {
   document.body.dataset.theme = nextTheme;
   localStorage.setItem(THEME_KEY, nextTheme);
   if (ui.themeSelect) ui.themeSelect.value = nextTheme;
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) {
+    metaTheme.setAttribute("content", nextTheme === "light" ? "#f4f6ff" : "#0b1020");
+  }
 }
 
 function escapeHtml(str) {
