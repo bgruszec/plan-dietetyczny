@@ -1,1 +1,134 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plan diety Bartka</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body data-theme="dark">
+    <header class="topbar">
+      <div>
+        <h1>Plan diety Bartka</h1>
+        <p id="heroKcal">Cel: 2100 kcal dziennie</p>
+      </div>
+      <button id="openSettingsBtn" class="btn">Ustawienia</button>
+    </header>
 
+    <nav class="anchors">
+      <a href="#planner">Planer</a>
+      <a href="#assumptions">Założenia</a>
+      <a href="#swaps">Zamienniki</a>
+      <a href="#plan28">Plan 28 dni</a>
+      <a href="#recipes">Przepisy</a>
+      <a href="#control">Kontrola efektów</a>
+    </nav>
+
+    <main class="container">
+      <section id="planner" class="card">
+        <h2>Twój planer</h2>
+        <div class="planner-row">
+          <label>
+            Tydzień
+            <select id="weekSelect"></select>
+          </label>
+          <label>
+            Dzień
+            <select id="daySelect"></select>
+          </label>
+        </div>
+
+        <div id="slotWrap" class="slot-wrap"></div>
+
+        <div class="planner-summary">
+          <strong id="dayKcal">Suma dnia: 0 kcal</strong>
+          <span id="kcalDiff"></span>
+        </div>
+
+        <div class="planner-actions">
+          <button id="clearDayBtn" class="btn danger">Wyczyść dzień</button>
+          <button id="exportBtn" class="btn">Eksport JSON</button>
+          <label class="btn file-btn">
+            Import JSON
+            <input id="importInput" type="file" accept=".json" />
+          </label>
+        </div>
+      </section>
+
+      <section id="assumptions" class="card">
+        <h2>Założenia</h2>
+        <ul id="assumptionsList"></ul>
+      </section>
+
+      <section id="swaps" class="card">
+        <h2>Zamienniki</h2>
+        <ul id="swapsList"></ul>
+      </section>
+
+      <section id="plan28" class="card">
+        <h2>Plan 28 dni</h2>
+        <label>
+          Filtr tygodnia
+          <select id="weekFilter">
+            <option value="all">Wszystkie</option>
+            <option value="1">Tydzień 1</option>
+            <option value="2">Tydzień 2</option>
+            <option value="3">Tydzień 3</option>
+            <option value="4">Tydzień 4</option>
+          </select>
+        </label>
+        <div id="planTables"></div>
+      </section>
+
+      <section id="recipes" class="card">
+        <h2>Przepisy</h2>
+        <input id="recipeSearch" type="text" placeholder="Szukaj przepisu..." />
+        <div id="recipesList" class="recipes-grid"></div>
+      </section>
+
+      <section id="control" class="card">
+        <h2>Kontrola efektów</h2>
+        <ul id="controlList"></ul>
+      </section>
+    </main>
+
+    <aside id="settingsPanel" class="settings-panel hidden">
+      <div class="settings-content">
+        <h3>Ustawienia</h3>
+
+        <label>
+          Cel kcal / dzień
+          <input id="targetKcalInput" type="number" min="1200" max="4000" step="10" />
+        </label>
+
+        <label>
+          Motyw
+          <select id="themeSelect">
+            <option value="dark">Ciemny</option>
+            <option value="light">Jasny</option>
+          </select>
+        </label>
+
+        <label class="check">
+          <input id="showAssumptionsToggle" type="checkbox" />
+          Pokaż sekcję „Założenia”
+        </label>
+        <label class="check">
+          <input id="showSwapsToggle" type="checkbox" />
+          Pokaż sekcję „Zamienniki”
+        </label>
+        <label class="check">
+          <input id="showControlToggle" type="checkbox" />
+          Pokaż sekcję „Kontrola efektów”
+        </label>
+
+        <div class="settings-actions">
+          <button id="resetAllBtn" class="btn danger">Reset wszystkiego</button>
+          <button id="closeSettingsBtn" class="btn">Zamknij</button>
+        </div>
+      </div>
+    </aside>
+
+    <script src="script.js"></script>
+  </body>
+</html>
