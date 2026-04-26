@@ -1,10 +1,20 @@
-const STORAGE_KEY = "bartek-diet-planner-v2";
+const STORAGE_KEY = "bartek-diet-planner-v3";
 
 const slotConfig = [
-  { id: "meal1", label: "Posiłek 1" },
-  { id: "meal2", label: "Posiłek 2" },
-  { id: "meal3", label: "Posiłek 3" },
-  { id: "snack", label: "Przekąska" }
+  { id: "meal1", label: "Śniadanie", category: "sniadanie" },
+  { id: "meal2", label: "Obiad", category: "obiad" },
+  { id: "meal3", label: "Kolacja", category: "kolacja" },
+  { id: "snack", label: "Przekąska", category: "przekaska" }
+];
+
+const weekdayNames = [
+  "Poniedziałek",
+  "Wtorek",
+  "Środa",
+  "Czwartek",
+  "Piątek",
+  "Sobota",
+  "Niedziela"
 ];
 
 const defaultState = {
@@ -135,6 +145,8 @@ async function init() {
     return;
   }
 
+  recipes = enrichRecipesWithCategories(recipes);
+
   renderStaticSections();
   renderPlanTables();
   renderPlanner();
@@ -152,7 +164,7 @@ function fillWeekAndDaySelectors() {
   for (let d = 1; d <= 7; d++) {
     const option = document.createElement("option");
     option.value = String(d);
-    option.textContent = `Dzień ${d}`;
+    option.textContent = weekdayNames[d - 1];
     ui.daySelect.appendChild(option);
   }
 
@@ -179,7 +191,6 @@ function bindEvents() {
   });
 
   ui.recipeSearch.addEventListener("input", renderRecipeCards);
-
   ui.weekFilter.addEventListener("change", renderPlanTables);
 
   ui.openSettingsBtn.addEventListener("click", () => {
@@ -269,28 +280,32 @@ function renderPlanner() {
 
   const selected = state.planner[key];
 
-  ui.slotWrap.innerHTML = slotConfig.map((slot) => {
-    const options = [
-      `<option value="">-- wybierz przepis --</option>`,
-      ...recipes.map((r) => {
-        const isSelected = selected[slot.id] === r.id ? "selected" : "";
-        return `<option value="${r.id}" ${isSelected}>${r.id}. ${escapeHtml(r.title)} (${r.kcal} kcal)</option>`;
-      })
-    ].join("");
+  ui.slotWrap.innerHTML = slotConfig
+    .map((slot) => {
+      const categoryRecipes = recipes.filter((r) => (r.categories || []).includes(slot.category));
 
-    const chosenRecipe = recipes.find((r) => r.id === selected[slot.id]);
-    const chosenText = chosenRecipe
-      ? `${chosenRecipe.id}. ${escapeHtml(chosenRecipe.title)} - ${chosenRecipe.kcal} kcal`
-      : "Brak wybranego przepisu";
+      const options = [
+        `<option value="">-- wybierz ${slot.label.toLowerCase()} --</option>`,
+        ...categoryRecipes.map((r) => {
+          const isSelected = selected[slot.id] === r.id ? "selected" : "";
+          return `<option value="${r.id}" ${isSelected}>${r.id}. ${escapeHtml(r.title)} (${r.kcal} kcal)</option>`;
+        })
+      ].join("");
 
-    return `
-      <div class="slot-card">
-        <p class="slot-title">${slot.label}</p>
-        <select data-slot="${slot.id}">${options}</select>
-        <p class="slot-meta">${chosenText}</p>
-      </div>
-    `;
-  }).join("");
+      const chosenRecipe = recipes.find((r) => r.id === selected[slot.id]);
+      const chosenText = chosenRecipe
+        ? `${chosenRecipe.id}. ${escapeHtml(chosenRecipe.title)} - ${chosenRecipe.kcal} kcal`
+        : "Brak wybranego przepisu";
+
+      return `
+        <div class="slot-card">
+          <p class="slot-title">${slot.label}</p>
+          <select data-slot="${slot.id}">${options}</select>
+          <p class="slot-meta">${chosenText}</p>
+        </div>
+      `;
+    })
+    .join("");
 
   ui.slotWrap.querySelectorAll("select").forEach((selectEl) => {
     selectEl.addEventListener("change", () => {
@@ -318,60 +333,109 @@ function renderPlanTables() {
   const weekValue = ui.weekFilter.value || "all";
   const weeks = weekValue === "all" ? [1, 2, 3, 4] : [Number(weekValue)];
 
-  ui.planTables.innerHTML = weeks.map((weekNum) => {
-    const rows = defaultPlan[weekNum] || [];
-    const rowHtml = rows.map((row) => `
-      <tr>
-        <td>Dzień ${row.day}</td>
-        <td>${recipeLink(row.meal1)}</td>
-        <td>${recipeLink(row.meal2)}</td>
-        <td>${recipeLink(row.meal3)}</td>
-        <td>${recipeLink(row.snack)}</td>
-        <td>${row.total}</td>
-      </tr>
-    `).join("");
+  ui.planTables.innerHTML = weeks
+    .map((weekNum) => {
+      const rows = defaultPlan[weekNum] || [];
+      const rowHtml = rows
+        .map((row, idx) => {
+          const weekDayName = weekdayNames[idx] || `Dzień ${row.day}`;
+          return `
+            <tr>
+              <td>${weekDayName}</td>
+              <td>${recipeLink(row.meal1)}</td>
+              <td>${recipeLink(row.meal2)}</td>
+              <td>${recipeLink(row.meal3)}</td>
+              <td>${recipeLink(row.snack)}</td>
+              <td>${row.total}</td>
+            </tr>
+          `;
+        })
+        .join("");
 
-    return `
-      <h3 class="plan-week-title">Tydzień ${weekNum}</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Dzień</th>
-            <th>Posiłek 1</th>
-            <th>Posiłek 2</th>
-            <th>Posiłek 3</th>
-            <th>Przekąska</th>
-            <th>Suma kcal</th>
-          </tr>
-        </thead>
-        <tbody>${rowHtml}</tbody>
-      </table>
-    `;
-  }).join("");
+      return `
+        <h3 class="plan-week-title">Tydzień ${weekNum}</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Dzień tygodnia</th>
+              <th>Śniadanie</th>
+              <th>Obiad</th>
+              <th>Kolacja</th>
+              <th>Przekąska</th>
+              <th>Suma kcal</th>
+            </tr>
+          </thead>
+          <tbody>${rowHtml}</tbody>
+        </table>
+      `;
+    })
+    .join("");
 }
 
 function renderRecipeCards() {
   const query = ui.recipeSearch.value.trim().toLowerCase();
 
   const filtered = recipes.filter((r) => {
-    const text = `${r.id} ${r.title} ${r.ingredients.join(" ")} ${r.steps.join(" ")}`.toLowerCase();
+    const categoriesText = (r.categories || []).join(" ");
+    const text = `${r.id} ${r.title} ${categoriesText} ${r.ingredients.join(" ")} ${r.steps.join(" ")}`.toLowerCase();
     return text.includes(query);
   });
 
-  ui.recipesList.innerHTML = filtered.map((r) => `
-    <article class="recipe-card" id="recipe-${r.id}">
-      <h3>${r.id}. ${escapeHtml(r.title)}</h3>
-      <div class="recipe-meta">${r.kcal} kcal</div>
-      <details>
-        <summary>Składniki</summary>
-        <ul>${r.ingredients.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
-      </details>
-      <details>
-        <summary>Wykonanie</summary>
-        <ul>${r.steps.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
-      </details>
-    </article>
-  `).join("");
+  ui.recipesList.innerHTML = filtered
+    .map((r) => {
+      const badges = (r.categories || [])
+        .map((cat) => `<span class="recipe-badge">${formatCategory(cat)}</span>`)
+        .join(" ");
+
+      return `
+        <article class="recipe-card" id="recipe-${r.id}">
+          <h3>${r.id}. ${escapeHtml(r.title)}</h3>
+          <div class="recipe-meta">${r.kcal} kcal ${badges ? `| ${badges}` : ""}</div>
+          <details>
+            <summary>Składniki</summary>
+            <ul>${r.ingredients.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
+          </details>
+          <details>
+            <summary>Wykonanie</summary>
+            <ul>${r.steps.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
+          </details>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function enrichRecipesWithCategories(list) {
+  const map = buildRecipeCategoryMapFromDefaultPlan();
+  return list.map((recipe) => {
+    const categories = Array.from(map[recipe.id] || []);
+    return { ...recipe, categories };
+  });
+}
+
+function buildRecipeCategoryMapFromDefaultPlan() {
+  const out = {};
+
+  Object.values(defaultPlan).forEach((weekRows) => {
+    weekRows.forEach((row) => {
+      slotConfig.forEach((slot) => {
+        const recipeId = row[slot.id];
+        if (!recipeId) return;
+        if (!out[recipeId]) out[recipeId] = new Set();
+        out[recipeId].add(slot.category);
+      });
+    });
+  });
+
+  return out;
+}
+
+function formatCategory(category) {
+  if (category === "sniadanie") return "śniadanie";
+  if (category === "obiad") return "obiad";
+  if (category === "kolacja") return "kolacja";
+  if (category === "przekaska") return "przekąska";
+  return category;
 }
 
 function getDefaultDay(week, dayInWeek) {
