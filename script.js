@@ -92,6 +92,8 @@ const ui = {
     planner: document.getElementById("section-planner"),
     plan: document.getElementById("section-plan"),
     recipes: document.getElementById("section-recipes"),
+    shopping: document.getElementById("section-shopping"),
+    consult: document.getElementById("section-consult"),
     settings: document.getElementById("section-settings")
   },
   weekSelect: document.getElementById("weekSelect"),
@@ -116,6 +118,18 @@ const ui = {
   bmiNow: document.getElementById("bmiNow"),
   metricsTable: document.getElementById("metricsTable"),
   copyDayBtn: document.getElementById("copyDayBtn"),
+  shoppingScope: document.getElementById("shoppingScope"),
+  shoppingWeekSelect: document.getElementById("shoppingWeekSelect"),
+  shoppingDaySelect: document.getElementById("shoppingDaySelect"),
+  generateShoppingBtn: document.getElementById("generateShoppingBtn"),
+  copyShoppingBtn: document.getElementById("copyShoppingBtn"),
+  shareShoppingBtn: document.getElementById("shareShoppingBtn"),
+  shoppingOutput: document.getElementById("shoppingOutput"),
+  consultPrompt: document.getElementById("consultPrompt"),
+  consultAskBtn: document.getElementById("consultAskBtn"),
+  consultApplyAllBtn: document.getElementById("consultApplyAllBtn"),
+  consultResponse: document.getElementById("consultResponse"),
+  consultChanges: document.getElementById("consultChanges"),
 
   themeSelect: document.getElementById("themeSelect"),
   targetKcalInput: document.getElementById("targetKcalInput"),
@@ -130,6 +144,7 @@ let recipesById = {};
 let planData = { targetKcal: 2100, defaultPlan: { "1": [], "2": [], "3": [], "4": [] } };
 let selectedWeek = 1;
 let selectedDay = 1;
+let pendingDietChanges = [];
 
 init();
 
@@ -140,6 +155,7 @@ async function init() {
   bindEvents();
   await loadProfiles();
   await switchProfile(currentProfile);
+  initShoppingSelectors();
 }
 
 function fillWeekDaySelectors() {
@@ -157,6 +173,13 @@ function fillWeekDaySelectors() {
   }
 }
 
+function initShoppingSelectors() {
+  ui.shoppingWeekSelect.innerHTML = ui.weekSelect.innerHTML;
+  ui.shoppingDaySelect.innerHTML = ui.daySelect.innerHTML;
+  ui.shoppingWeekSelect.value = ui.weekSelect.value;
+  ui.shoppingDaySelect.value = ui.daySelect.value;
+}
+
 function bindEvents() {
   ui.profileSelect.addEventListener("change", async () => {
     const id = ui.profileSelect.value;
@@ -171,7 +194,11 @@ function bindEvents() {
 
   ui.daySelect.addEventListener("change", () => {
     selectedDay = Number(ui.daySelect.value);
+    ui.shoppingDaySelect.value = ui.daySelect.value;
     renderPlanner();
+  });
+  ui.weekSelect.addEventListener("change", () => {
+    ui.shoppingWeekSelect.value = ui.weekSelect.value;
   });
 
   ui.weekFilter.addEventListener("change", renderPlanTables);
@@ -181,6 +208,11 @@ function bindEvents() {
   ui.saveSettingsBtn.addEventListener("click", saveSettings);
   ui.resetPlannerBtn.addEventListener("click", resetPlannerForCurrentProfile);
   ui.themeSelect.addEventListener("change", () => applyTheme(ui.themeSelect.value));
+  ui.generateShoppingBtn.addEventListener("click", generateShoppingList);
+  ui.copyShoppingBtn.addEventListener("click", copyShoppingList);
+  ui.shareShoppingBtn.addEventListener("click", shareShoppingList);
+  ui.consultAskBtn.addEventListener("click", askDietAssistant);
+  ui.consultApplyAllBtn.addEventListener("click", applyAllSuggestedChanges);
 
   document.addEventListener("click", (event) => {
     const link = event.target.closest('a[href^="#recipe-"]');
@@ -234,6 +266,12 @@ async function switchProfile(profileId) {
 
   ui.heroKcal.textContent = `Cel: ${getTargetKcal()} kcal dziennie`;
   fillSettingsFromState();
+  ui.shoppingWeekSelect.value = "1";
+  ui.shoppingDaySelect.value = "1";
+  ui.shoppingOutput.value = "";
+  pendingDietChanges = [];
+  ui.consultResponse.textContent = "";
+  ui.consultChanges.innerHTML = "";
 
   renderPlanner();
   renderPlanTables();
@@ -441,6 +479,221 @@ function renderPlanTables() {
       </div>
     `;
   }).join("");
+}
+
+function getPlannedDayEntry(week, day) {
+  const state = getPlannerState();
+  const key = `${week}-${day}`;
+  const base = planData.defaultPlan?.[String(week)]?.[day - 1] || {};
+  const local = state[key] || {};
+  return {
+    meal1: local.meal1 ?? base.meal1 ?? "",
+    meal2: local.meal2 ?? base.meal2 ?? "",
+    meal3: local.meal3 ?? base.meal3 ?? "",
+    snack: local.snack ?? base.snack ?? ""
+  };
+}
+
+function generateShoppingList() {
+  const scope = ui.shoppingScope.value;
+  const week = Number(ui.shoppingWeekSelect.value || selectedWeek);
+  const day = Number(ui.shoppingDaySelect.value || selectedDay);
+
+  const recipeIds = [];
+  if (scope === "week") {
+    for (let d = 1; d <= 7; d++) {
+      const row = getPlannedDayEntry(week, d);
+      slotConfig.forEach((slot) => {
+        if (row[slot.id]) recipeIds.push(row[slot.id]);
+      });
+    }
+  } else {
+    const row = getPlannedDayEntry(week, day);
+    slotConfig.forEach((slot) => {
+      if (row[slot.id]) recipeIds.push(row[slot.id]);
+    });
+  }
+
+  const uniqueRecipeIds = Array.from(new Set(recipeIds));
+  if (!uniqueRecipeIds.length) {
+    ui.shoppingOutput.value = "Brak wybranych przepisów w tym zakresie.";
+    return;
+  }
+
+  const ingredients = [];
+  uniqueRecipeIds.forEach((id) => {
+    const recipe = recipesById[id];
+    if (!recipe) return;
+    recipe.ingredients.forEach((ing) => ingredients.push(ing));
+  });
+
+  const title = scope === "week"
+    ? `Lista zakupów - tydzień ${week}`
+    : `Lista zakupów - tydzień ${week}, dzień ${day}`;
+  const body = ingredients.map((ing) => `- ${ing}`).join("\n");
+  ui.shoppingOutput.value = `${title}\n\n${body}`;
+}
+
+async function copyShoppingList() {
+  const text = ui.shoppingOutput.value.trim();
+  if (!text) {
+    alert("Najpierw wygeneruj listę zakupów.");
+    return;
+  }
+  await navigator.clipboard.writeText(text);
+  alert("Lista zakupów skopiowana.");
+}
+
+async function shareShoppingList() {
+  const text = ui.shoppingOutput.value.trim();
+  if (!text) {
+    alert("Najpierw wygeneruj listę zakupów.");
+    return;
+  }
+
+  if (navigator.share) {
+    await navigator.share({ title: "Lista zakupów", text });
+    return;
+  }
+  await navigator.clipboard.writeText(text);
+  alert("Udostępnianie niedostępne. Lista została skopiowana do schowka.");
+}
+
+function canRecipeFitSlot(recipeId, slotId) {
+  const recipe = recipesById[recipeId];
+  if (!recipe) return false;
+  const slot = slotConfig.find((s) => s.id === slotId);
+  if (!slot) return false;
+  const categories = recipe.categories || [];
+  if (slot.category === "sniadanie" || slot.category === "kolacja") {
+    return categories.includes("sniadanie") || categories.includes("kolacja");
+  }
+  return categories.includes(slot.category);
+}
+
+function getPlanContextForAssistant() {
+  const week = Number(ui.weekSelect.value);
+  const day = Number(ui.daySelect.value);
+  const row = getPlannedDayEntry(week, day);
+  const meals = slotConfig.map((slot) => ({
+    slotId: slot.id,
+    slotLabel: slot.label,
+    recipeId: row[slot.id] || null,
+    recipeTitle: row[slot.id] ? recipesById[row[slot.id]]?.title || null : null
+  }));
+  return {
+    profileId: currentProfile,
+    targetKcal: getTargetKcal(),
+    selectedWeek: week,
+    selectedDay: day,
+    meals
+  };
+}
+
+async function askDietAssistant() {
+  const message = ui.consultPrompt.value.trim();
+  if (!message) {
+    alert("Wpisz pytanie do asystenta.");
+    return;
+  }
+
+  ui.consultAskBtn.disabled = true;
+  ui.consultResponse.textContent = "Przetwarzam...";
+  ui.consultChanges.innerHTML = "";
+
+  try {
+    const response = await fetch("/api/chat-diet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message,
+        context: getPlanContextForAssistant()
+      })
+    });
+    if (!response.ok) throw new Error("Błąd połączenia z asystentem.");
+
+    const data = await response.json();
+    const answer = data.answer || "Brak odpowiedzi.";
+    pendingDietChanges = Array.isArray(data.changes) ? data.changes : [];
+
+    ui.consultResponse.textContent = answer;
+    renderPendingChanges();
+  } catch (err) {
+    ui.consultResponse.textContent = err.message || "Nie udało się połączyć z asystentem.";
+    pendingDietChanges = [];
+  } finally {
+    ui.consultAskBtn.disabled = false;
+  }
+}
+
+function renderPendingChanges() {
+  if (!pendingDietChanges.length) {
+    ui.consultChanges.innerHTML = "<p>Brak proponowanych zmian w planie.</p>";
+    return;
+  }
+
+  ui.consultChanges.innerHTML = pendingDietChanges.map((change, idx) => {
+    const recipe = recipesById[change.recipeId];
+    const recipeTitle = recipe ? recipe.title : change.recipeId;
+    return `
+      <div class="change-item">
+        <p><strong>Tydzień ${change.week}, dzień ${change.day}, slot ${change.slotId}</strong></p>
+        <p>Nowy przepis: ${escapeHtml(recipeTitle || "-")} (${escapeHtml(change.recipeId || "-")})</p>
+        <p>${escapeHtml(change.reason || "")}</p>
+        <button type="button" data-change-idx="${idx}" class="apply-one-change-btn">Zastosuj</button>
+      </div>
+    `;
+  }).join("");
+
+  ui.consultChanges.querySelectorAll(".apply-one-change-btn").forEach((btn) => {
+    btn.addEventListener("click", () => applySuggestedChange(Number(btn.dataset.changeIdx)));
+  });
+}
+
+function applySuggestedChange(index) {
+  const change = pendingDietChanges[index];
+  if (!change) return;
+  if (!canRecipeFitSlot(change.recipeId, change.slotId)) {
+    alert(`Zmiana pominięta: ${change.recipeId} nie pasuje do ${change.slotId}.`);
+    return;
+  }
+
+  const state = getPlannerState();
+  const key = `${change.week}-${change.day}`;
+  const base = getPlannedDayEntry(change.week, change.day);
+  const row = { ...base, ...(state[key] || {}) };
+  row[change.slotId] = change.recipeId;
+  state[key] = row;
+  setPlannerState(state);
+  renderPlanner();
+  renderPlanTables();
+  renderPendingChanges();
+}
+
+function applyAllSuggestedChanges() {
+  if (!pendingDietChanges.length) {
+    alert("Brak zmian do zastosowania.");
+    return;
+  }
+
+  let applied = 0;
+  pendingDietChanges.forEach((_, idx) => {
+    const change = pendingDietChanges[idx];
+    if (!change) return;
+    if (!canRecipeFitSlot(change.recipeId, change.slotId)) return;
+    const state = getPlannerState();
+    const key = `${change.week}-${change.day}`;
+    const base = getPlannedDayEntry(change.week, change.day);
+    const row = { ...base, ...(state[key] || {}) };
+    row[change.slotId] = change.recipeId;
+    state[key] = row;
+    setPlannerState(state);
+    applied += 1;
+  });
+
+  renderPlanner();
+  renderPlanTables();
+  alert(`Zastosowano zmian: ${applied}.`);
 }
 
 function planRecipeCell(id) {

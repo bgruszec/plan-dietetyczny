@@ -35,6 +35,14 @@
         <span class="menu-btn-icon">PR</span>
         <span class="menu-btn-label">Przepisy</span>
       </button>
+      <button class="menu-btn" data-section="shopping" aria-selected="false">
+        <span class="menu-btn-icon">LS</span>
+        <span class="menu-btn-label">Lista zakupów</span>
+      </button>
+      <button class="menu-btn" data-section="consult" aria-selected="false">
+        <span class="menu-btn-icon">AI</span>
+        <span class="menu-btn-label">Konsultacje</span>
+      </button>
       <button class="menu-btn" data-section="settings" aria-selected="false">
         <span class="menu-btn-icon">US</span>
         <span class="menu-btn-label">Ustawienia</span>
@@ -97,6 +105,44 @@
         <h2>Przepisy</h2>
         <input id="recipeSearch" type="text" placeholder="Szukaj przepisu..." />
         <div id="recipesList"></div>
+      </section>
+
+      <section class="card app-section" id="section-shopping">
+        <h2>Lista zakupów</h2>
+        <div class="grid">
+          <label>Zakres
+            <select id="shoppingScope">
+              <option value="day">Wybrany dzień</option>
+              <option value="week">Wybrany tydzień</option>
+            </select>
+          </label>
+          <label>Tydzień
+            <select id="shoppingWeekSelect"></select>
+          </label>
+          <label>Dzień
+            <select id="shoppingDaySelect"></select>
+          </label>
+        </div>
+        <div class="row">
+          <button id="generateShoppingBtn" class="btn">Generuj listę</button>
+          <button id="copyShoppingBtn" type="button">Kopiuj</button>
+          <button id="shareShoppingBtn" type="button">Udostępnij</button>
+        </div>
+        <textarea id="shoppingOutput" rows="14" readonly placeholder="Tu pojawi się lista zakupów..."></textarea>
+      </section>
+
+      <section class="card app-section" id="section-consult">
+        <h2>Konsultacje AI</h2>
+        <p class="settings-note">To wsparcie informacyjne, nie porada medyczna. Przy chorobach i lekach skonsultuj się ze specjalistą.</p>
+        <label>Pytanie do asystenta
+          <textarea id="consultPrompt" rows="4" placeholder="Np. Co zmienić, żeby zmniejszyć głód wieczorem i utrzymać kalorie?"></textarea>
+        </label>
+        <div class="row">
+          <button id="consultAskBtn" class="btn">Zapytaj</button>
+          <button id="consultApplyAllBtn" type="button">Zastosuj wszystkie zmiany</button>
+        </div>
+        <div id="consultResponse" class="recipe-card"></div>
+        <div id="consultChanges"></div>
       </section>
 
       <section class="card app-section" id="section-settings">
