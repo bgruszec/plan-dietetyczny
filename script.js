@@ -294,9 +294,20 @@ function renderPlanner() {
   }
 
   const selected = state[dayKey];
+  const selectedIds = new Set(
+    slotConfig.map((slot) => selected[slot.id]).filter(Boolean)
+  );
 
   ui.slotWrap.innerHTML = slotConfig.map((slot) => {
-    const allowed = recipes;
+    const allowedCategories = slot.category === "sniadanie" || slot.category === "kolacja"
+      ? ["sniadanie", "kolacja"]
+      : [slot.category];
+    const allowed = recipes.filter((r) => {
+      const categories = r.categories || [];
+      const categoryMatch = categories.some((cat) => allowedCategories.includes(cat));
+      // Pozostawiamy już wybrane receptury, żeby nie "znikały" po zmianie kategorii dnia.
+      return categoryMatch || selectedIds.has(r.id);
+    });
     const options = [
       `<option value="">-- wybierz --</option>`,
       ...allowed.map((r) => `<option value="${r.id}" ${selected[slot.id] === r.id ? "selected" : ""}>${escapeHtml(r.title)} (${r.kcal} kcal)</option>`)
