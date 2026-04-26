@@ -801,6 +801,21 @@ function simplifyShoppingIngredientLine(line) {
   s = s.replace(/\s+[-–—]\s+(?=\d)/g, " ");
   s = s.replace(/\s+/g, " ").trim();
 
+  // Zakresy ilości (np. 50-80 g, 1-2 g) → jedna wartość (max), żeby parsowanie i sumowanie działały
+  const fmtRangeQty = (hi) => {
+    const n = Math.round(hi * 100) / 100;
+    if (Number.isInteger(n) || Math.abs(n % 1) < 1e-6) return String(Math.round(n));
+    return String(n).replace(".", ",");
+  };
+  s = s.replace(/\b(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)\s+(g|kg|ml|l)\b/gi, (_, a, b, u) => {
+    const hi = Math.max(parseFloat(String(a).replace(",", ".")), parseFloat(String(b).replace(",", ".")));
+    return `${fmtRangeQty(hi)} ${String(u).toLowerCase()}`;
+  });
+  s = s.replace(/\b(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)(g|kg|ml|l)\b/gi, (_, a, b, u) => {
+    const hi = Math.max(parseFloat(String(a).replace(",", ".")), parseFloat(String(b).replace(",", ".")));
+    return `${fmtRangeQty(hi)}${String(u).toLowerCase()}`;
+  });
+
   s = s.replace(/(\d+(?:[.,]\d+)?)\s+(g|kg|ml|l)\b/gi, (_, num, unit) => {
     const n = String(num).replace(",", ".");
     return `${n}${String(unit).toLowerCase()}`;
@@ -845,9 +860,10 @@ const SHOPPING_CATEGORY_RULES = [
     title: "Mięso, drób i ryby",
     patterns: [
       "mięso mielone", "mielone mięso", "pulpety", "pierś z kurczaka", "pierś z indyka",
-      "kurczak", "indyk", "wieprz", "wołow", "schab", "polędwic", "rostbef", "boczek", "szynk",
-      "mięso", "mielone drobiowe", "tuńczyk", "łosoś", "dorsz", "mintaj", "pstrąg", "śledź",
-      "makrel", "sandacz", "halibut", "morszczuk", "krewet", "dorsz", "drob", "indycze"
+      "filet z kurczaka", "karkówka", "karkowka", "kurczak", "indyk", "wieprz", "wołow", "schab",
+      "polędwic", "rostbef", "boczek", "szynk", "mięso", "mielone drobiowe", "tuńczyk", "łosoś",
+      "dorsz", "mintaj", "pstrąg", "śledź", "makrel", "sandacz", "halibut", "morszczuk", "krewet",
+      "drob", "indycze"
     ]
   },
   {
@@ -862,8 +878,8 @@ const SHOPPING_CATEGORY_RULES = [
   {
     title: "Pieczywo i wypieki",
     patterns: [
-      "croissant", "bagiet", "bułka", "chleb", "tortilla", "wrap", "pita", "bajgiel", "grahamka",
-      "pieczywo", "ciabatta", "tost pełnoziarnisty"
+      "croissant", "bagiet", "bułka", "chleb", "chałka", "chalka", "tortilla", "wrap", "pita",
+      "bajgiel", "grahamka", "pieczywo", "ciabatta", "tost pełnoziarnisty"
     ]
   },
   {
@@ -894,15 +910,15 @@ const SHOPPING_CATEGORY_RULES = [
     title: "Oleje, oliwy i tłuszcze",
     patterns: [
       "oliwa z oliwek", "oliwa", "olej rzepakowy", "olej kokosowy", "olej sezamowy", "olej lniany",
-      " olej ", "masło klarowane", "smalec", "ghee", " masło "
+      " olej ", "masło klarowane", "smalec", "ghee", "masło", "maslo"
     ]
   },
   {
     title: "Napoje i buliony",
     patterns: [
       "napój sojowy", "napój owsiany", "napój migdałowy", "napój kokosowy", "bulion warzywny",
-      "bulion drobiowy", "bulion wołowy", "kostka bulion", "woda mineralna", "woda ",
-      "herbata", "kawa", "napar", "sok ", "smoothie"
+      "bulion drobiowy", "bulion wołowy", "bulion w proszku", "bulion w kostce", "kostka bulion",
+      "bulion", "woda mineralna", "woda ", "herbata", "kawa", "napar", "sok ", "smoothie"
     ]
   },
   {
@@ -912,7 +928,7 @@ const SHOPPING_CATEGORY_RULES = [
       "wanili", "cynamon", "kardamon", "curry", "kurkuma", "imbir mielony", "papryka słodka",
       "papryka ostra", "ziele angielskie", "laur", "goździk", "majeranek", "tymianek", "oregano",
       "bazylia", "natka", "koperek", "koper włoski", "chrzan", "musztard", "majonez", "ketchup",
-      "sos sojowy", "sos ", "ocet", "balsamiczny", "sól", "pieprz", "zioła", "bulion w proszku",
+      "sos sojowy", "sos ", "ocet", "balsamiczny", "sól", "pieprz", "zioła",
       "przypraw", "ekstrakt waniliowy", "aromat"
     ]
   }
@@ -921,8 +937,41 @@ const SHOPPING_CATEGORY_RULES = [
 function normalizeShoppingText(s) {
   return String(s || "")
     .toLowerCase()
+    .replace(/ł/g, "l")
     .normalize("NFD")
     .replace(/\p{M}/gu, "");
+}
+
+/** Warianty „A / B” w nazwie → pierwsza opcja (np. szynka z kurczaka / indyka). */
+function stripShoppingSlashAlternatives(name) {
+  const t = String(name || "").trim();
+  const idx = t.indexOf(" / ");
+  if (idx === -1) return t;
+  return t.slice(0, idx).trim();
+}
+
+/** Wspólny klucz przy sumowaniu tego samego produktu pod różnymi opisami. */
+function canonicalMergeIngredientName(rawName) {
+  const base = stripShoppingSlashAlternatives(String(rawName || "").trim());
+  let s = normalizeShoppingText(base).replace(/\s+/g, " ").trim();
+  if (!s) return s;
+
+  if (/\bszynka\s+z\s+kurczaka\b/.test(s) || /\bszynka\s+kurczaka\b/.test(s)) return "szynka z kurczaka";
+  if (/\bszynka\s+z\s+indyka\b/.test(s) || /\bszynka\s+indyka\b/.test(s)) return "szynka z indyka";
+
+  if (/\bpiers\s+z\s+kurczaka\b/.test(s) || /\bpiers\s+kurczaka\b/.test(s)
+    || /\bfilet\s+z\s+kurczaka\b/.test(s)) {
+    return "piers z kurczaka";
+  }
+  if (/\bpiers\s+z\s+indyka\b/.test(s) || /\bpiers\s+indyka\b/.test(s)
+    || /\bfilet\s+z\s+indyka\b/.test(s)) {
+    return "piers z indyka";
+  }
+
+  if (s === "jajko" || /^jajko(\s|$)/.test(s)) return "jajka";
+  if (/^jajka(\s|$)/.test(s)) return "jajka";
+
+  return s;
 }
 
 function parseShoppingQuantity(line) {
@@ -963,9 +1012,10 @@ function mergeShoppingIngredientLines(lines) {
     const line = raw.trim();
     if (!line) continue;
     const p = parseShoppingQuantity(line);
+    const mergeName = canonicalMergeIngredientName(p.name);
     const key = p.amount != null && p.unit
-      ? `${normalizeShoppingText(p.name)}|${p.unit}`
-      : `txt:${normalizeShoppingText(line)}`;
+      ? `${mergeName}|${p.unit}`
+      : `txt:${canonicalMergeIngredientName(line)}`;
 
     const prev = map.get(key);
     if (!prev) {
