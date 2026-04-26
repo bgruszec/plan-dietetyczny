@@ -284,6 +284,15 @@ textarea {
   padding: 10px;
   margin-top: 8px;
 }
+
+/* Pusty panel odpowiedzi bez treści — bez „pustego przycisku” pod Wyślij */
+#consultResponse:empty {
+  display: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-height: 0;
+}
 .recipe-meta {
   color: var(--muted);
   font-size: 13px;

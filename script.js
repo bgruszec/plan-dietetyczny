@@ -221,6 +221,7 @@ function setAuthUi(user, message = "", forceShowApp = false) {
   ui.authChip.classList.toggle("hidden", !signed);
   ui.appShell.forEach((el) => el.classList.toggle("hidden", !signed && !forceShowApp));
   ui.authCard.classList.toggle("hidden", signed || forceShowApp);
+  refreshHeroKcal();
 }
 
 async function registerUser() {
@@ -548,13 +549,13 @@ async function switchProfile(profileId) {
   ui.daySelect.value = "1";
   ui.weekFilter.value = "all";
 
-  ui.heroKcal.textContent = `Cel: ${getTargetKcal()} kcal dziennie`;
+  refreshHeroKcal();
   fillSettingsFromState();
   ui.shoppingWeekSelect.value = "1";
   ui.shoppingDaySelect.value = "1";
   ui.shoppingOutput.innerHTML = "";
   pendingRecipePatch = null;
-  ui.consultResponse.textContent = "";
+  setConsultResponseText("");
   ui.consultRecipePatch.innerHTML = "";
   refreshConsultRecipeOptions();
   renderConsultRecipeContext();
@@ -1327,6 +1328,17 @@ function getFocusRecipeForAssistant() {
   };
 }
 
+function setConsultResponseText(value) {
+  const el = ui.consultResponse;
+  if (!el) return;
+  el.textContent = value;
+  if (String(value ?? "").trim()) {
+    el.removeAttribute("hidden");
+  } else {
+    el.setAttribute("hidden", "");
+  }
+}
+
 function renderConsultRecipeContext() {
   const r = recipesById[ui.consultTargetRecipe.value];
   if (!r) {
@@ -1389,7 +1401,7 @@ async function askDietAssistantWithMessage(message, options = {}) {
 
   ui.consultAskBtn.disabled = true;
   if (ui.consultForceRecipePatch) ui.consultForceRecipePatch.disabled = true;
-  ui.consultResponse.textContent = "Przetwarzam...";
+  setConsultResponseText("Przetwarzam...");
   ui.consultRecipePatch.innerHTML = "";
   pendingRecipePatch = null;
 
@@ -1424,13 +1436,13 @@ async function askDietAssistantWithMessage(message, options = {}) {
     if (options.forceRecipePatch && !pendingRecipePatch) {
       shown += "\n\n(Uwaga: nie udało się odczytać propozycji zmian przepisu — doprecyzuj pytanie lub spróbuj ponownie.)";
     }
-    ui.consultResponse.textContent = shown;
+    setConsultResponseText(shown);
     renderPendingRecipePatch();
     await saveConsultHistory(message, answer, [{ kind: "recipe_patch", recipeId: focus.id, patch: pendingRecipePatch }]);
     ui.consultPrompt.value = "";
     if (ui.consultForceRecipePatch) ui.consultForceRecipePatch.checked = false;
   } catch (err) {
-    ui.consultResponse.textContent = err.message || "Nie udało się połączyć z asystentem.";
+    setConsultResponseText(err.message || "Nie udało się połączyć z asystentem.");
     pendingRecipePatch = null;
     renderPendingRecipePatch();
   } finally {
@@ -1929,6 +1941,19 @@ function getTargetKcal() {
   return localTarget || planData.targetKcal || 2100;
 }
 
+function refreshHeroKcal() {
+  const el = ui.heroKcal;
+  if (!el) return;
+  const show = Boolean(authUser) || supabase === null;
+  if (!show) {
+    el.textContent = "";
+    el.setAttribute("hidden", "");
+    return;
+  }
+  el.removeAttribute("hidden");
+  el.textContent = `Cel: ${getTargetKcal()} kcal dziennie`;
+}
+
 function loadProfileSettings() {
   try {
     return JSON.parse(localStorage.getItem(settingsKey()) || "{}");
@@ -1958,7 +1983,7 @@ async function saveSettings() {
   applyTheme(ui.themeSelect.value);
   await saveSettingsRemote(targetKcal);
 
-  ui.heroKcal.textContent = `Cel: ${getTargetKcal()} kcal dziennie`;
+  refreshHeroKcal();
   renderPlanner();
   renderPlanTables();
   alert("Ustawienia zapisane.");

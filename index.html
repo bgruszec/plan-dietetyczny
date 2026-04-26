@@ -14,7 +14,7 @@
     <header class="topbar">
       <div>
         <h1>Plan dietetyczny</h1>
-        <p id="heroKcal">Cel: - kcal</p>
+        <p id="heroKcal" hidden></p>
       </div>
       <div class="topbar-trail hidden" id="topbarTrail">
         <label>
@@ -178,9 +178,9 @@
           W odpowiedzi oczekuję konkretnej propozycji zmian w przepisie (składniki / kroki / kcal)
         </label>
         <div class="row">
-          <button id="consultAskBtn" class="btn" type="button">Zapytaj</button>
+          <button id="consultAskBtn" class="btn" type="button">Wyślij</button>
         </div>
-        <div id="consultResponse" class="recipe-card"></div>
+        <div id="consultResponse" class="recipe-card" hidden></div>
         <div id="consultRecipePatch"></div>
       </section>
 
