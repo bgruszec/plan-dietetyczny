@@ -173,9 +173,12 @@
         <label>Pytanie lub oczekiwania wobec tego przepisu
           <textarea id="consultPrompt" rows="4" placeholder="Np. zrób wersję z mniejszą ilością jajek i więcej warzyw, bez zmiany kaloryczności o więcej niż 10%"></textarea>
         </label>
+        <label class="consult-option">
+          <input id="consultForceRecipePatch" type="checkbox" />
+          W odpowiedzi oczekuję konkretnej propozycji zmian w przepisie (składniki / kroki / kcal)
+        </label>
         <div class="row">
           <button id="consultAskBtn" class="btn" type="button">Zapytaj</button>
-          <button id="consultProposeRecipeBtn" type="button">Zaproponuj zmiany w przepisie</button>
         </div>
         <div id="consultResponse" class="recipe-card"></div>
         <div id="consultRecipePatch"></div>

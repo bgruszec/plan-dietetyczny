@@ -443,6 +443,26 @@ body[data-theme="light"] .metrics-bmi-marker {
 }
 .metrics-progress-foot { margin-top: 12px !important; }
 
+.consult-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 10px 0 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 640px;
+  line-height: 1.4;
+}
+.consult-option input[type="checkbox"] {
+  margin-top: 4px;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  accent-color: var(--accent);
+}
+
 .consult-context {
   margin-top: 10px;
   max-height: min(420px, 50vh);

@@ -131,7 +131,7 @@ const ui = {
   shoppingOutput: document.getElementById("shoppingOutput"),
   consultPrompt: document.getElementById("consultPrompt"),
   consultAskBtn: document.getElementById("consultAskBtn"),
-  consultProposeRecipeBtn: document.getElementById("consultProposeRecipeBtn"),
+  consultForceRecipePatch: document.getElementById("consultForceRecipePatch"),
   consultResponse: document.getElementById("consultResponse"),
   consultRecipeContext: document.getElementById("consultRecipeContext"),
   consultRecipePatch: document.getElementById("consultRecipePatch"),
@@ -489,7 +489,6 @@ function bindEvents() {
   ui.copyShoppingBtn.addEventListener("click", copyShoppingList);
   ui.shareShoppingBtn.addEventListener("click", shareShoppingList);
   ui.consultAskBtn.addEventListener("click", askDietAssistant);
-  ui.consultProposeRecipeBtn.addEventListener("click", askForRecipePatchProposal);
   ui.consultTargetRecipe.addEventListener("change", () => {
     renderConsultRecipeContext();
     pendingRecipePatch = null;
@@ -1360,24 +1359,25 @@ function refreshConsultRecipeOptions() {
 }
 
 async function askDietAssistant() {
-  const message = ui.consultPrompt.value.trim();
-  if (!message) {
-    alert("Wpisz pytanie do asystenta.");
+  const forceRecipePatch = Boolean(ui.consultForceRecipePatch?.checked);
+  let message = ui.consultPrompt.value.trim();
+
+  if (!message && !forceRecipePatch) {
+    alert("Wpisz pytanie do asystenta albo zaznacz oczekiwanie propozycji zmian w przepisie.");
     return;
   }
-  await askDietAssistantWithMessage(message, { forceRecipePatch: false });
-}
 
-async function askForRecipePatchProposal() {
   const focus = getFocusRecipeForAssistant();
   if (!focus) {
     alert("Wybierz przepis z listy.");
     return;
   }
-  const userIntent = ui.consultPrompt.value.trim()
-    || "Zaproponuj zmiany w składnikach i krokach zgodnie z typową dietą redukcyjną, zachowując sens posiłku.";
-  const message = `Pracujesz wyłącznie nad przepisem ${focus.id} (${focus.title}). ${userIntent}`;
-  await askDietAssistantWithMessage(message, { forceRecipePatch: true });
+
+  if (!message && forceRecipePatch) {
+    message = `Pracujesz wyłącznie nad przepisem ${focus.id} (${focus.title}). Zaproponuj zmiany w składnikach i krokach zgodnie z typową dietą redukcyjną, zachowując sens posiłku.`;
+  }
+
+  await askDietAssistantWithMessage(message, { forceRecipePatch });
 }
 
 async function askDietAssistantWithMessage(message, options = {}) {
@@ -1388,15 +1388,23 @@ async function askDietAssistantWithMessage(message, options = {}) {
   }
 
   ui.consultAskBtn.disabled = true;
-  ui.consultProposeRecipeBtn.disabled = true;
+  if (ui.consultForceRecipePatch) ui.consultForceRecipePatch.disabled = true;
   ui.consultResponse.textContent = "Przetwarzam...";
   ui.consultRecipePatch.innerHTML = "";
   pendingRecipePatch = null;
 
   try {
+    const headers = { "Content-Type": "application/json" };
+    if (supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    }
+
     const response = await fetch("/api/chat-diet", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         message,
         mode: "recipe",
@@ -1404,9 +1412,11 @@ async function askDietAssistantWithMessage(message, options = {}) {
         forceRecipePatch: Boolean(options.forceRecipePatch)
       })
     });
-    if (!response.ok) throw new Error("Błąd połączenia z asystentem.");
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || `Błąd ${response.status}`);
+    }
     const answer = data.answer || "Brak odpowiedzi.";
     pendingRecipePatch = data.recipePatch || null;
 
@@ -1418,13 +1428,14 @@ async function askDietAssistantWithMessage(message, options = {}) {
     renderPendingRecipePatch();
     await saveConsultHistory(message, answer, [{ kind: "recipe_patch", recipeId: focus.id, patch: pendingRecipePatch }]);
     ui.consultPrompt.value = "";
+    if (ui.consultForceRecipePatch) ui.consultForceRecipePatch.checked = false;
   } catch (err) {
     ui.consultResponse.textContent = err.message || "Nie udało się połączyć z asystentem.";
     pendingRecipePatch = null;
     renderPendingRecipePatch();
   } finally {
     ui.consultAskBtn.disabled = false;
-    ui.consultProposeRecipeBtn.disabled = false;
+    if (ui.consultForceRecipePatch) ui.consultForceRecipePatch.disabled = false;
   }
 }
 
