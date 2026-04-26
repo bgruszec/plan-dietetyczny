@@ -3,24 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Planner dietetyczny</title>
+    <title>Plan dietetyczny</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body data-theme="dark">
+  <body>
     <header class="topbar">
       <div>
-        <h1>Planner dietetyczny</h1>
+        <h1>Plan dietetyczny</h1>
         <p id="heroKcal">Cel: - kcal</p>
       </div>
-      <div class="top-controls">
-        <label>Profil <select id="profileSelect"></select></label>
-      </div>
+      <label>
+        Profil
+        <select id="profileSelect"></select>
+      </label>
     </header>
 
     <main class="container">
       <section class="card">
         <h2>Dane i pomiary</h2>
-        <div class="grid2">
+        <div class="grid">
           <label>Data <input id="mDate" type="date" /></label>
           <label>Płeć
             <select id="mGender">
@@ -36,23 +37,22 @@
           <label>Biodra (cm) <input id="mHips" type="number" step="0.1" /></label>
         </div>
         <div class="row">
-          <button id="saveMetricBtn" class="btn">Zapisz pomiar</button>
+          <button id="saveMetricBtn">Zapisz pomiar</button>
           <strong id="bmiNow">BMI: -</strong>
         </div>
         <div id="metricsTable"></div>
       </section>
 
-      <section id="planner" class="card">
-        <h2>Twój planer</h2>
-        <div class="planner-row">
+      <section class="card">
+        <h2>Planer</h2>
+        <div class="grid">
           <label>Tydzień <select id="weekSelect"></select></label>
           <label>Dzień <select id="daySelect"></select></label>
         </div>
+
         <div id="slotWrap" class="slot-wrap"></div>
-        <div class="planner-summary">
-          <strong id="dayKcal">Suma dnia: 0 kcal</strong>
-          <span id="kcalDiff"></span>
-        </div>
+
+        <p><strong id="dayKcal">Suma dnia: 0 kcal</strong> <span id="kcalDiff"></span></p>
       </section>
 
       <section class="card">
