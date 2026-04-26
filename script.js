@@ -105,6 +105,7 @@ const ui = {
   saveMetricBtn: document.getElementById("saveMetricBtn"),
   bmiNow: document.getElementById("bmiNow"),
   metricsTable: document.getElementById("metricsTable"),
+  copyDayBtn: document.getElementById("copyDayBtn"),
 
   themeSelect: document.getElementById("themeSelect"),
   targetKcalInput: document.getElementById("targetKcalInput"),
@@ -166,6 +167,7 @@ function bindEvents() {
   ui.weekFilter.addEventListener("change", renderPlanTables);
   ui.recipeSearch.addEventListener("input", renderRecipes);
   ui.saveMetricBtn.addEventListener("click", saveMetric);
+  ui.copyDayBtn.addEventListener("click", copySelectedDayPlan);
   ui.saveSettingsBtn.addEventListener("click", saveSettings);
   ui.resetPlannerBtn.addEventListener("click", resetPlannerForCurrentProfile);
   ui.themeSelect.addEventListener("change", () => applyTheme(ui.themeSelect.value));
@@ -292,20 +294,9 @@ function renderPlanner() {
   }
 
   const selected = state[dayKey];
-  const selectedIds = new Set(
-    slotConfig.map((slot) => selected[slot.id]).filter(Boolean)
-  );
 
   ui.slotWrap.innerHTML = slotConfig.map((slot) => {
-    const allowedCategories = slot.category === "sniadanie" || slot.category === "kolacja"
-      ? ["sniadanie", "kolacja"]
-      : [slot.category];
-    const allowed = recipes.filter((r) => {
-      const categories = r.categories || [];
-      const categoryMatch = categories.some((cat) => allowedCategories.includes(cat));
-      // Zachowujemy elastyczność: jeśli przepis jest już wybrany w tym dniu, można go powtórzyć w innym slocie.
-      return categoryMatch || selectedIds.has(r.id);
-    });
+    const allowed = recipes;
     const options = [
       `<option value="">-- wybierz --</option>`,
       ...allowed.map((r) => `<option value="${r.id}" ${selected[slot.id] === r.id ? "selected" : ""}>${escapeHtml(r.title)} (${r.kcal} kcal)</option>`)
@@ -336,6 +327,49 @@ function renderPlanner() {
 
   ui.dayKcal.textContent = `Suma dnia: ${dayKcal} kcal`;
   ui.kcalDiff.textContent = diff === 0 ? "Idealnie pod cel." : diff > 0 ? `+${diff} kcal` : `${diff} kcal`;
+}
+
+function copySelectedDayPlan() {
+  const sourceWeek = selectedWeek;
+  const sourceDay = selectedDay;
+
+  const targetWeekInput = prompt("Skopiować na który tydzień? (1-4)", String(sourceWeek));
+  if (targetWeekInput === null) return;
+  const targetWeek = Number(targetWeekInput);
+
+  const targetDayInput = prompt("Skopiować na który dzień? (1-7)", String(sourceDay));
+  if (targetDayInput === null) return;
+  const targetDay = Number(targetDayInput);
+
+  if (!Number.isInteger(targetWeek) || targetWeek < 1 || targetWeek > 4) {
+    alert("Podaj tydzień od 1 do 4.");
+    return;
+  }
+  if (!Number.isInteger(targetDay) || targetDay < 1 || targetDay > 7) {
+    alert("Podaj dzień od 1 do 7.");
+    return;
+  }
+
+  const sourceKey = `${sourceWeek}-${sourceDay}`;
+  const targetKey = `${targetWeek}-${targetDay}`;
+  if (sourceKey === targetKey) {
+    alert("Wybrano ten sam dzień - nic nie skopiowano.");
+    return;
+  }
+
+  const state = getPlannerState();
+  const sourceEntry = state[sourceKey] || {
+    meal1: planData.defaultPlan?.[String(sourceWeek)]?.[sourceDay - 1]?.meal1 || "",
+    meal2: planData.defaultPlan?.[String(sourceWeek)]?.[sourceDay - 1]?.meal2 || "",
+    meal3: planData.defaultPlan?.[String(sourceWeek)]?.[sourceDay - 1]?.meal3 || "",
+    snack: planData.defaultPlan?.[String(sourceWeek)]?.[sourceDay - 1]?.snack || ""
+  };
+
+  state[targetKey] = { ...sourceEntry };
+  setPlannerState(state);
+
+  renderPlanTables();
+  alert(`Skopiowano plan z tygodnia ${sourceWeek}, dnia ${sourceDay} na tydzień ${targetWeek}, dzień ${targetDay}.`);
 }
 
 function renderPlanTables() {
