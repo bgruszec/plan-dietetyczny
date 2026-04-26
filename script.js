@@ -1,5 +1,6 @@
 const APP_KEY = "diet-app-v3";
 const ACTIVE_PROFILE_KEY = "diet-active-profile";
+const THEME_KEY = "diet-theme";
 
 const slotConfig = [
   { id: "meal1", label: "Śniadanie", category: "sniadanie" },
@@ -65,6 +66,14 @@ const ingredientAliases = {
 const ui = {
   profileSelect: document.getElementById("profileSelect"),
   heroKcal: document.getElementById("heroKcal"),
+  menuButtons: Array.from(document.querySelectorAll(".menu-btn")),
+  sections: {
+    metrics: document.getElementById("section-metrics"),
+    planner: document.getElementById("section-planner"),
+    plan: document.getElementById("section-plan"),
+    recipes: document.getElementById("section-recipes"),
+    settings: document.getElementById("section-settings")
+  },
   weekSelect: document.getElementById("weekSelect"),
   daySelect: document.getElementById("daySelect"),
   weekFilter: document.getElementById("weekFilter"),
@@ -85,7 +94,12 @@ const ui = {
   mHips: document.getElementById("mHips"),
   saveMetricBtn: document.getElementById("saveMetricBtn"),
   bmiNow: document.getElementById("bmiNow"),
-  metricsTable: document.getElementById("metricsTable")
+  metricsTable: document.getElementById("metricsTable"),
+
+  themeSelect: document.getElementById("themeSelect"),
+  targetKcalInput: document.getElementById("targetKcalInput"),
+  saveSettingsBtn: document.getElementById("saveSettingsBtn"),
+  resetPlannerBtn: document.getElementById("resetPlannerBtn")
 };
 
 let profiles = [];
@@ -99,7 +113,9 @@ let selectedDay = 1;
 init();
 
 async function init() {
+  applyTheme(localStorage.getItem(THEME_KEY) || "dark");
   fillWeekDaySelectors();
+  initMenu();
   bindEvents();
   await loadProfiles();
   await switchProfile(currentProfile);
@@ -140,6 +156,15 @@ function bindEvents() {
   ui.weekFilter.addEventListener("change", renderPlanTables);
   ui.recipeSearch.addEventListener("input", renderRecipes);
   ui.saveMetricBtn.addEventListener("click", saveMetric);
+  ui.saveSettingsBtn.addEventListener("click", saveSettings);
+  ui.resetPlannerBtn.addEventListener("click", resetPlannerForCurrentProfile);
+  ui.themeSelect.addEventListener("change", () => applyTheme(ui.themeSelect.value));
+
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest('a[href^="#recipe-"]');
+    if (!link) return;
+    showSection("recipes");
+  });
 }
 
 async function loadProfiles() {
@@ -185,7 +210,8 @@ async function switchProfile(profileId) {
   ui.daySelect.value = "1";
   ui.weekFilter.value = "all";
 
-  ui.heroKcal.textContent = `Cel: ${planData.targetKcal || 2100} kcal dziennie`;
+  ui.heroKcal.textContent = `Cel: ${getTargetKcal()} kcal dziennie`;
+  fillSettingsFromState();
 
   renderPlanner();
   renderPlanTables();
@@ -225,6 +251,9 @@ function plannerKey() {
 }
 function metricsKey() {
   return `${APP_KEY}:${currentProfile}:metrics`;
+}
+function settingsKey() {
+  return `${APP_KEY}:${currentProfile}:settings`;
 }
 
 function getPlannerState() {
@@ -283,7 +312,7 @@ function renderPlanner() {
   });
 
   const dayKcal = slotConfig.reduce((sum, slot) => sum + (recipesById[selected[slot.id]]?.kcal || 0), 0);
-  const diff = dayKcal - (planData.targetKcal || 2100);
+  const diff = dayKcal - getTargetKcal();
 
   ui.dayKcal.textContent = `Suma dnia: ${dayKcal} kcal`;
   ui.kcalDiff.textContent = diff === 0 ? "Idealnie pod cel." : diff > 0 ? `+${diff} kcal` : `${diff} kcal`;
@@ -300,25 +329,27 @@ function renderPlanTables() {
 
     return `
       <h3>Tydzień ${w}</h3>
-      <table class="plan-table">
-        <thead>
-          <tr>
-            <th>Dzień</th><th>Śniadanie</th><th>Obiad</th><th>Kolacja</th><th>Przekąska</th><th>Suma kcal</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map((row, idx) => `
+      <div class="table-scroll">
+        <table class="plan-table">
+          <thead>
             <tr>
-              <td>${weekdayNames[idx] || `Dzień ${row.day}`}</td>
-              <td>${planRecipeCell(row.meal1)}</td>
-              <td>${planRecipeCell(row.meal2)}</td>
-              <td>${planRecipeCell(row.meal3)}</td>
-              <td>${planRecipeCell(row.snack)}</td>
-              <td>${row.total ?? "-"}</td>
+              <th>Dzień</th><th>Śniadanie</th><th>Obiad</th><th>Kolacja</th><th>Przekąska</th><th>Suma kcal</th>
             </tr>
-          `).join("")}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            ${rows.map((row, idx) => `
+              <tr>
+                <td>${weekdayNames[idx] || `Dzień ${row.day}`}</td>
+                <td>${planRecipeCell(row.meal1)}</td>
+                <td>${planRecipeCell(row.meal2)}</td>
+                <td>${planRecipeCell(row.meal3)}</td>
+                <td>${planRecipeCell(row.snack)}</td>
+                <td>${row.total ?? "-"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
     `;
   }).join("");
 }
@@ -511,10 +542,6 @@ function saveMetric() {
   renderMetrics();
 }
 
-function metricsKey() {
-  return `${APP_KEY}:${currentProfile}:metrics`;
-}
-
 function calcBMI(weightKg, heightCm) {
   const h = heightCm / 100;
   return Number((weightKg / (h * h)).toFixed(2));
@@ -540,29 +567,101 @@ function renderMetrics() {
   }
 
   ui.metricsTable.innerHTML = `
-    <table class="metric-table">
-      <thead>
-        <tr>
-          <th>Data</th><th>Płeć</th><th>Wiek</th><th>Waga</th><th>Wzrost</th><th>Talia</th><th>Klatka/Biust</th><th>Biodra</th><th>BMI</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${history.map((h) => `
+    <div class="table-scroll">
+      <table class="metric-table">
+        <thead>
           <tr>
-            <td>${h.date}</td>
-            <td>${h.gender}</td>
-            <td>${h.age ?? ""}</td>
-            <td>${h.weight ?? ""}</td>
-            <td>${h.height ?? ""}</td>
-            <td>${h.waist ?? ""}</td>
-            <td>${h.chest ?? ""}</td>
-            <td>${h.hips ?? ""}</td>
-            <td>${h.bmi} (${bmiLabel(h.bmi)})</td>
+            <th>Data</th><th>Płeć</th><th>Wiek</th><th>Waga</th><th>Wzrost</th><th>Talia</th><th>Klatka/Biust</th><th>Biodra</th><th>BMI</th>
           </tr>
-        `).join("")}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          ${history.map((h) => `
+            <tr>
+              <td>${h.date}</td>
+              <td>${h.gender}</td>
+              <td>${h.age ?? ""}</td>
+              <td>${h.weight ?? ""}</td>
+              <td>${h.height ?? ""}</td>
+              <td>${h.waist ?? ""}</td>
+              <td>${h.chest ?? ""}</td>
+              <td>${h.hips ?? ""}</td>
+              <td>${h.bmi} (${bmiLabel(h.bmi)})</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
   `;
+}
+
+function initMenu() {
+  ui.menuButtons.forEach((btn) => {
+    btn.addEventListener("click", () => showSection(btn.dataset.section));
+  });
+}
+
+function showSection(sectionKey) {
+  Object.entries(ui.sections).forEach(([key, section]) => {
+    section.classList.toggle("is-active", key === sectionKey);
+  });
+
+  ui.menuButtons.forEach((btn) => {
+    const active = btn.dataset.section === sectionKey;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+}
+
+function getTargetKcal() {
+  const localTarget = loadProfileSettings().targetKcal;
+  return localTarget || planData.targetKcal || 2100;
+}
+
+function loadProfileSettings() {
+  try {
+    return JSON.parse(localStorage.getItem(settingsKey()) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function fillSettingsFromState() {
+  const settings = loadProfileSettings();
+  ui.targetKcalInput.value = settings.targetKcal || planData.targetKcal || 2100;
+  ui.themeSelect.value = document.body.dataset.theme || "dark";
+}
+
+function saveSettings() {
+  const targetKcal = Number(ui.targetKcalInput.value);
+  if (!targetKcal || targetKcal < 1000 || targetKcal > 6000) {
+    alert("Podaj cel kcal w zakresie 1000-6000.");
+    return;
+  }
+
+  const settings = {
+    targetKcal,
+    updatedAt: new Date().toISOString()
+  };
+  localStorage.setItem(settingsKey(), JSON.stringify(settings));
+  applyTheme(ui.themeSelect.value);
+
+  ui.heroKcal.textContent = `Cel: ${getTargetKcal()} kcal dziennie`;
+  renderPlanner();
+  renderPlanTables();
+  alert("Ustawienia zapisane.");
+}
+
+function resetPlannerForCurrentProfile() {
+  if (!confirm("Na pewno zresetować planer dla tego profilu?")) return;
+  localStorage.removeItem(plannerKey());
+  renderPlanner();
+}
+
+function applyTheme(theme) {
+  const nextTheme = theme === "light" ? "light" : "dark";
+  document.body.dataset.theme = nextTheme;
+  localStorage.setItem(THEME_KEY, nextTheme);
+  if (ui.themeSelect) ui.themeSelect.value = nextTheme;
 }
 
 function escapeHtml(str) {
