@@ -829,6 +829,21 @@ function simplifyShoppingIngredientLine(line) {
   return s.replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Rozdziela listy typu „sól, pieprz, zioła” na osobne wpisy (sumowanie).
+ * Nie dotyka linii z jedną ilością na końcu (np. „schab, szynka … 170g”).
+ */
+function expandCommaShoppingFragments(line) {
+  const t = String(line || "").trim();
+  if (!t) return [];
+  if (/\d+(?:[.,]\d+)?\s*(?:g|kg|ml|l|szt)\s*$/i.test(t)) return [t];
+  const parts = t
+    .split(/\s*,\s*/)
+    .map((p) => stripShoppingSlashAlternatives(p.trim()))
+    .filter(Boolean);
+  return parts.length ? parts : [t];
+}
+
 const SHOPPING_CATEGORY_ORDER = [
   "Warzywa i owoce",
   "Mięso, drób i ryby",
@@ -971,6 +986,11 @@ function canonicalMergeIngredientName(rawName) {
   if (s === "jajko" || /^jajko(\s|$)/.test(s)) return "jajka";
   if (/^jajka(\s|$)/.test(s)) return "jajka";
 
+  const firstTok = s.split(/\s+/)[0] || "";
+  if (firstTok === "sol") return "sol";
+  if (firstTok === "pieprz") return "pieprz";
+  if (firstTok === "erytrol" || firstTok === "erytrytol") return "erytrytol";
+
   return s;
 }
 
@@ -1032,6 +1052,20 @@ function mergeShoppingIngredientLines(lines) {
     }
   }
 
+  const coalesceBareWithGram = new Set(["sol", "pieprz", "erytrytol"]);
+  for (const [key, v] of [...map.entries()]) {
+    const m = /^txt:(.+)$/.exec(key);
+    if (!m || v.amount != null) continue;
+    const canon = m[1];
+    if (!coalesceBareWithGram.has(canon)) continue;
+    const gKey = `${canon}|g`;
+    if (map.has(gKey)) {
+      const gNode = map.get(gKey);
+      gNode.extraBare = (gNode.extraBare || 0) + (v.count || 1);
+      map.delete(key);
+    }
+  }
+
   const out = [];
   for (const v of map.values()) {
     out.push(formatMergedShoppingLine(v));
@@ -1056,8 +1090,9 @@ function formatMergedShoppingLine(v) {
   } else {
     numStr = Number.isInteger(n) || Math.abs(n - Math.round(n)) < 1e-6 ? String(Math.round(n)) : String(n).replace(",", ".").replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
   }
-  if (v.unit === "szt") return `${v.name} ${numStr} szt`;
-  return `${v.name} ${numStr}${v.unit}`;
+  const extraBare = v.extraBare ? ` (+${v.extraBare}× bez podanej masy)` : "";
+  if (v.unit === "szt") return `${v.name} ${numStr} szt${extraBare}`;
+  return `${v.name} ${numStr}${v.unit}${extraBare}`;
 }
 
 function categorizeShoppingIngredient(line) {
@@ -1129,7 +1164,9 @@ function generateShoppingList() {
     if (!recipe) return;
     (recipe.ingredients || []).forEach((ing) => {
       const cleaned = simplifyShoppingIngredientLine(ing);
-      if (cleaned) ingredients.push(cleaned);
+      expandCommaShoppingFragments(cleaned).forEach((frag) => {
+        if (frag) ingredients.push(frag);
+      });
     });
   });
 
