@@ -6,7 +6,7 @@
     <title>Plan dietetyczny</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body data-theme="dark">
     <header class="topbar">
       <div>
         <h1>Plan dietetyczny</h1>
@@ -37,7 +37,7 @@
           <label>Biodra (cm) <input id="mHips" type="number" step="0.1" /></label>
         </div>
         <div class="row">
-          <button id="saveMetricBtn">Zapisz pomiar</button>
+          <button id="saveMetricBtn" class="btn">Zapisz pomiar</button>
           <strong id="bmiNow">BMI: -</strong>
         </div>
         <div id="metricsTable"></div>
@@ -49,10 +49,22 @@
           <label>Tydzień <select id="weekSelect"></select></label>
           <label>Dzień <select id="daySelect"></select></label>
         </div>
-
         <div id="slotWrap" class="slot-wrap"></div>
-
         <p><strong id="dayKcal">Suma dnia: 0 kcal</strong> <span id="kcalDiff"></span></p>
+      </section>
+
+      <section class="card">
+        <h2>Plan 28 dni</h2>
+        <label>Filtr tygodnia
+          <select id="weekFilter">
+            <option value="all">Wszystkie</option>
+            <option value="1">Tydzień 1</option>
+            <option value="2">Tydzień 2</option>
+            <option value="3">Tydzień 3</option>
+            <option value="4">Tydzień 4</option>
+          </select>
+        </label>
+        <div id="planTables"></div>
       </section>
 
       <section class="card">
