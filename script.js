@@ -1,11 +1,14 @@
-const APP_KEY = "diet-app-v1";
+const APP_KEY = "diet-app-v2";
+const ACTIVE_PROFILE_KEY = "diet-active-profile";
+
 const slotConfig = [
   { id: "meal1", label: "Śniadanie", category: "sniadanie" },
   { id: "meal2", label: "Obiad", category: "obiad" },
   { id: "meal3", label: "Kolacja", category: "kolacja" },
   { id: "snack", label: "Przekąska", category: "przekaska" }
 ];
-const weekdayNames = ["Poniedziałek","Wtorek","Środa","Czwartek","Piątek","Sobota","Niedziela"];
+
+const weekdayNames = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"];
 
 const ui = {
   profileSelect: document.getElementById("profileSelect"),
@@ -35,27 +38,20 @@ let profiles = [];
 let currentProfile = "bartek";
 let recipes = [];
 let recipesById = {};
-let planData = { targetKcal: 2100, defaultPlan: {} };
+let planData = { targetKcal: 2100, defaultPlan: { "1": [], "2": [], "3": [], "4": [] } };
 let selectedWeek = 1;
 let selectedDay = 1;
 
 init();
 
 async function init() {
+  fillWeekDaySelectors();
+  bindEvents();
   await loadProfiles();
-  bindStatic();
   await switchProfile(currentProfile);
 }
 
-async function loadProfiles() {
-  const res = await fetch("plans/profiles.json");
-  profiles = await res.json();
-  ui.profileSelect.innerHTML = profiles.map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
-  currentProfile = profiles[0]?.id || "bartek";
-  ui.profileSelect.value = currentProfile;
-}
-
-function bindStatic() {
+function fillWeekDaySelectors() {
   for (let w = 1; w <= 4; w++) {
     const opt = document.createElement("option");
     opt.value = String(w);
@@ -68,9 +64,13 @@ function bindStatic() {
     opt.textContent = weekdayNames[d - 1];
     ui.daySelect.appendChild(opt);
   }
+}
 
+function bindEvents() {
   ui.profileSelect.addEventListener("change", async () => {
-    await switchProfile(ui.profileSelect.value);
+    const id = ui.profileSelect.value;
+    localStorage.setItem(ACTIVE_PROFILE_KEY, id);
+    await switchProfile(id);
   });
 
   ui.weekSelect.addEventListener("change", () => {
@@ -84,43 +84,77 @@ function bindStatic() {
   });
 
   ui.recipeSearch.addEventListener("input", renderRecipes);
-
   ui.saveMetricBtn.addEventListener("click", saveMetric);
+}
+
+async function loadProfiles() {
+  try {
+    const res = await fetch("plans/profiles.json");
+    profiles = await res.json();
+  } catch {
+    profiles = [
+      { id: "bartek", name: "Bartek" },
+      { id: "paulina", name: "Paulina" }
+    ];
+  }
+
+  ui.profileSelect.innerHTML = profiles
+    .map((p) => `<option value="${p.id}">${p.name}</option>`)
+    .join("");
+
+  const saved = localStorage.getItem(ACTIVE_PROFILE_KEY);
+  const exists = profiles.some((p) => p.id === saved);
+  currentProfile = exists ? saved : (profiles[0]?.id || "bartek");
+  ui.profileSelect.value = currentProfile;
 }
 
 async function switchProfile(profileId) {
   currentProfile = profileId;
+  localStorage.setItem(ACTIVE_PROFILE_KEY, profileId);
 
-  const [recipesRes, planRes] = await Promise.all([
-    fetch(`plans/${profileId}/recipes.json`),
-    fetch(`plans/${profileId}/plan.json`)
-  ]);
+  try {
+    const [rRes, pRes] = await Promise.all([
+      fetch(`plans/${profileId}/recipes.json`),
+      fetch(`plans/${profileId}/plan.json`)
+    ]);
 
-  recipes = await recipesRes.json();
-  planData = await planRes.json();
+    if (!rRes.ok || !pRes.ok) throw new Error("Brak plików w plans/");
 
-  recipes = enrichCategories(recipes, planData.defaultPlan);
+    recipes = await rRes.json();
+    planData = await pRes.json();
+  } catch (err) {
+    // fallback żeby przepisy zawsze były widoczne
+    const r = await fetch("recipes.json");
+    recipes = await r.json();
+    planData = { targetKcal: 2100, defaultPlan: { "1": [], "2": [], "3": [], "4": [] } };
+    console.warn("Fallback do root recipes.json:", err);
+  }
+
+  recipes = addCategoriesFromPlan(recipes, planData.defaultPlan || {});
   recipesById = Object.fromEntries(recipes.map((r) => [r.id, r]));
 
-  ui.heroKcal.textContent = `Cel: ${planData.targetKcal} kcal dziennie`;
   selectedWeek = 1;
   selectedDay = 1;
   ui.weekSelect.value = "1";
   ui.daySelect.value = "1";
+
+  ui.heroKcal.textContent = `Cel: ${planData.targetKcal || 2100} kcal dziennie`;
 
   renderPlanner();
   renderRecipes();
   renderMetrics();
 }
 
-function enrichCategories(list, defaultPlan) {
+function addCategoriesFromPlan(list, defaultPlan) {
   const map = {};
-  Object.values(defaultPlan || {}).forEach((rows) => {
+  Object.values(defaultPlan).forEach((rows) => {
     rows.forEach((row) => {
       slotConfig.forEach((slot) => {
         const id = row[slot.id];
         if (!id) return;
         if (!map[id]) map[id] = new Set();
+
+        // śniadanie i kolacja wymienne
         if (slot.category === "sniadanie" || slot.category === "kolacja") {
           map[id].add("sniadanie");
           map[id].add("kolacja");
@@ -176,13 +210,13 @@ function renderPlanner() {
     ].join("");
 
     const chosen = recipesById[selected[slot.id]];
-    const meta = chosen ? `<a href="#recipe-${chosen.id}">${chosen.title}</a> - ${chosen.kcal} kcal` : "Brak wybranego przepisu";
+    const chosenMeta = chosen ? `<a href="#recipe-${chosen.id}">${chosen.title}</a> - ${chosen.kcal} kcal` : "Brak wybranego przepisu";
 
     return `
       <div class="slot-card">
         <p class="slot-title">${slot.label}</p>
         <select data-slot="${slot.id}">${options}</select>
-        <p class="slot-meta">${meta}</p>
+        <p class="slot-meta">${chosenMeta}</p>
       </div>
     `;
   }).join("");
@@ -203,9 +237,13 @@ function renderPlanner() {
 
 function renderRecipes() {
   const q = ui.recipeSearch.value.trim().toLowerCase();
-  const list = recipes.filter((r) => `${r.id} ${r.title} ${r.ingredients.join(" ")}`.toLowerCase().includes(q));
+  const filtered = recipes.filter((r) =>
+    `${r.id} ${r.title} ${r.ingredients.join(" ")} ${r.steps.join(" ")}`
+      .toLowerCase()
+      .includes(q)
+  );
 
-  ui.recipesList.innerHTML = list.map((r) => `
+  ui.recipesList.innerHTML = filtered.map((r) => `
     <article class="recipe-card" id="recipe-${r.id}">
       <h3>${r.title}</h3>
       <div class="recipe-meta">${r.kcal} kcal</div>
@@ -237,14 +275,17 @@ function saveMetric() {
   }
 
   const bmi = calcBMI(weight, height);
-  const item = { date, gender, age, weight, height, waist, chest, hips, bmi };
+  const entry = { date, gender, age, weight, height, waist, chest, hips, bmi };
 
   let history = [];
-  try { history = JSON.parse(localStorage.getItem(metricsKey()) || "[]"); } catch {}
-  history.push(item);
-  history.sort((a, b) => a.date.localeCompare(b.date));
+  try {
+    history = JSON.parse(localStorage.getItem(metricsKey()) || "[]");
+  } catch {}
 
+  history.push(entry);
+  history.sort((a, b) => a.date.localeCompare(b.date));
   localStorage.setItem(metricsKey(), JSON.stringify(history));
+
   renderMetrics();
 }
 
@@ -262,11 +303,12 @@ function bmiLabel(bmi) {
 
 function renderMetrics() {
   let history = [];
-  try { history = JSON.parse(localStorage.getItem(metricsKey()) || "[]"); } catch {}
+  try {
+    history = JSON.parse(localStorage.getItem(metricsKey()) || "[]");
+  } catch {}
 
   const latest = history[history.length - 1];
-  if (latest) ui.bmiNow.textContent = `BMI: ${latest.bmi} (${bmiLabel(latest.bmi)})`;
-  else ui.bmiNow.textContent = "BMI: -";
+  ui.bmiNow.textContent = latest ? `BMI: ${latest.bmi} (${bmiLabel(latest.bmi)})` : "BMI: -";
 
   if (!history.length) {
     ui.metricsTable.innerHTML = "<p>Brak zapisanych pomiarów.</p>";
