@@ -3,123 +3,64 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Plan diety Bartka</title>
+    <title>Planner dietetyczny</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body data-theme="dark">
     <header class="topbar">
       <div>
-        <h1>Plan diety Bartka</h1>
-        <p id="heroKcal">Cel: 2100 kcal dziennie</p>
+        <h1>Planner dietetyczny</h1>
+        <p id="heroKcal">Cel: - kcal</p>
       </div>
-      <button id="openSettingsBtn" class="btn">Ustawienia</button>
+      <div class="top-controls">
+        <label>Profil <select id="profileSelect"></select></label>
+      </div>
     </header>
 
-    <nav class="anchors">
-      <a href="#planner">Planer</a>
-      <a href="#assumptions">Założenia</a>
-      <a href="#swaps">Zamienniki</a>
-      <a href="#plan28">Plan 28 dni</a>
-      <a href="#recipes">Przepisy</a>
-      <a href="#control">Kontrola efektów</a>
-    </nav>
-
     <main class="container">
+      <section class="card">
+        <h2>Dane i pomiary</h2>
+        <div class="grid2">
+          <label>Data <input id="mDate" type="date" /></label>
+          <label>Płeć
+            <select id="mGender">
+              <option value="mezczyzna">Mężczyzna</option>
+              <option value="kobieta">Kobieta</option>
+            </select>
+          </label>
+          <label>Wiek <input id="mAge" type="number" min="10" max="120" /></label>
+          <label>Waga (kg) <input id="mWeight" type="number" step="0.1" /></label>
+          <label>Wzrost (cm) <input id="mHeight" type="number" step="1" /></label>
+          <label>Talia (cm) <input id="mWaist" type="number" step="0.1" /></label>
+          <label>Klatka/Biust (cm) <input id="mChest" type="number" step="0.1" /></label>
+          <label>Biodra (cm) <input id="mHips" type="number" step="0.1" /></label>
+        </div>
+        <div class="row">
+          <button id="saveMetricBtn" class="btn">Zapisz pomiar</button>
+          <strong id="bmiNow">BMI: -</strong>
+        </div>
+        <div id="metricsTable"></div>
+      </section>
+
       <section id="planner" class="card">
         <h2>Twój planer</h2>
         <div class="planner-row">
           <label>Tydzień <select id="weekSelect"></select></label>
           <label>Dzień <select id="daySelect"></select></label>
         </div>
-
         <div id="slotWrap" class="slot-wrap"></div>
-
         <div class="planner-summary">
           <strong id="dayKcal">Suma dnia: 0 kcal</strong>
           <span id="kcalDiff"></span>
         </div>
-
-        <div class="planner-actions">
-          <button id="clearDayBtn" class="btn danger">Wyczyść dzień</button>
-          <button id="exportBtn" class="btn">Eksport JSON</button>
-          <label class="btn file-btn">
-            Import JSON
-            <input id="importInput" type="file" accept=".json" />
-          </label>
-        </div>
       </section>
 
-      <section id="assumptions" class="card">
-        <h2>Założenia</h2>
-        <ul id="assumptionsList"></ul>
-      </section>
-
-      <section id="swaps" class="card">
-        <h2>Zamienniki</h2>
-        <ul id="swapsList"></ul>
-      </section>
-
-      <section id="plan28" class="card">
-        <h2>Plan 28 dni</h2>
-        <label>
-          Filtr tygodnia
-          <select id="weekFilter">
-            <option value="all">Wszystkie</option>
-            <option value="1">Tydzień 1</option>
-            <option value="2">Tydzień 2</option>
-            <option value="3">Tydzień 3</option>
-            <option value="4">Tydzień 4</option>
-          </select>
-        </label>
-        <div id="planTables"></div>
-      </section>
-
-      <section id="recipes" class="card">
+      <section class="card">
         <h2>Przepisy</h2>
         <input id="recipeSearch" type="text" placeholder="Szukaj przepisu..." />
         <div id="recipesList"></div>
       </section>
-
-      <section id="control" class="card">
-        <h2>Kontrola efektów</h2>
-        <ul id="controlList"></ul>
-      </section>
     </main>
-
-    <aside id="settingsPanel" class="settings-panel hidden">
-      <div class="settings-content">
-        <h3>Ustawienia</h3>
-        <label>
-          Cel kcal / dzień
-          <input id="targetKcalInput" type="number" min="1200" max="4000" step="10" />
-        </label>
-
-        <label>
-          Motyw
-          <select id="themeSelect">
-            <option value="dark">Ciemny</option>
-            <option value="light">Jasny</option>
-          </select>
-        </label>
-
-        <label class="check"><input id="showAssumptionsToggle" type="checkbox" /> Pokaż „Założenia”</label>
-        <label class="check"><input id="showSwapsToggle" type="checkbox" /> Pokaż „Zamienniki”</label>
-        <label class="check"><input id="showControlToggle" type="checkbox" /> Pokaż „Kontrola efektów”</label>
-
-        <div class="settings-actions">
-          <button id="resetAllBtn" class="btn danger">Reset wszystkiego</button>
-          <button id="closeSettingsBtn" class="btn">Zamknij</button>
-        </div>
-      </div>
-    </aside>
-
-    <nav class="mobile-nav" aria-label="Menu mobilne">
-      <a href="#planner">Planer</a>
-      <a href="#plan28">28 dni</a>
-      <a href="#recipes">Przepisy</a>
-      <a href="#assumptions">Info</a>
-      <button id="mobileSettingsBtn" type="button">Ustawienia</button>
-    </nav>
 
     <script src="script.js"></script>
   </body>
