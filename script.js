@@ -1,4 +1,11 @@
-const STORAGE_KEY = "bartek-diet-planner-v1";
+const STORAGE_KEY = "bartek-diet-planner-v2";
+
+const slotConfig = [
+  { id: "meal1", label: "Posiłek 1" },
+  { id: "meal2", label: "Posiłek 2" },
+  { id: "meal3", label: "Posiłek 3" },
+  { id: "snack", label: "Przekąska" }
+];
 
 const defaultState = {
   settings: {
@@ -8,15 +15,73 @@ const defaultState = {
     showSwaps: true,
     showControl: true
   },
-  planner: {} // key: "week-day" => { meal1: "R1", meal2: "R2", meal3: "R3", snack: "R4" }
+  planner: {}
 };
 
-const slotConfig = [
-  { id: "meal1", label: "Posiłek 1" },
-  { id: "meal2", label: "Posiłek 2" },
-  { id: "meal3", label: "Posiłek 3" },
-  { id: "snack", label: "Przekąska" }
+const assumptions = [
+  "Cel: redukcja masy ciała przy sensownym deficycie kalorycznym, bez bardzo niskokalorycznej diety.",
+  "Kaloryka: większość dni ma około 2050-2100 kcal. To cel praktyczny, nie laboratoryjny - realne wartości zależą od marek produktów.",
+  "Posiłki: 3 większe posiłki + 1 słodka/praktyczna przekąska.",
+  "Uwzględnione preferencje: produkty dostępne w Lidlu, brak ryb i owoców morza, brak serka wiejskiego, brak sałatek jako osobnych dań, pieczywo może być z masłem w kontrolowanej gramaturze.",
+  "Gramatury mięsa, makaronu, ryżu, kaszy, płatków i ziemniaków podane są przed obróbką, chyba że przy składniku napisano inaczej.",
+  "Warzywa poza ziemniakami i strączkami można zwiększać. Nie pomijaj ich - pomagają w sytości."
 ];
+
+const swaps = [
+  "Chleb żytni możesz zamieniać na chleb na zakwasie, orkiszowy, pełnoziarnisty, bułkę grahamkę albo pełnoziarnistą. Trzymaj podobną gramaturę.",
+  "Ryż, kasze i makarony możesz rotować między sobą. Orientacyjnie 100 g ryżu/kaszy odpowiada około 450-500 g ziemniaków.",
+  "Kurczaka możesz zamieniać na indyka, chude mielone drobiowe, schab, polędwiczkę wieprzową lub chudą wołowinę.",
+  "Serek wiejski z oryginalnych przepisów zamieniam na twaróg chudy lub półtłusty i/lub skyr.",
+  "Oliwę/olej można zamienić na masło w tej samej gramaturze, ale nie zwiększaj ilości tłuszczu.",
+  "Owoce można rotować: banan, jabłko, pomarańcza, gruszka, maliny, truskawki, borówki - trzymaj podobną kalorykę porcji.",
+  "Jeżeli robisz danie na grillu gazowym, zwykle nie zwiększaj tłuszczu. Grillowanie zastępuje smażenie, nie jest dodatkiem kalorii."
+];
+
+const controlRules = [
+  "Waż się codziennie rano po toalecie, ale patrz na średnią z 7 dni, a nie na pojedynczy pomiar.",
+  "Po 14 dniach: jeżeli średnia waga nie spada, odejmij 100-150 kcal dziennie albo dodaj 1 trening na orbitreku.",
+  "Jeżeli głód jest bardzo duży albo spadek masy jest zbyt szybki i czujesz słabość, dodaj 100-150 kcal z węglowodanów lub nabiału wysokobiałkowego.",
+  "Orbitrek: zacznij od 3 treningów po 25-30 minut tygodniowo. Po 2 tygodniach możesz zwiększyć do 4 treningów po 30-40 minut."
+];
+
+const defaultPlan = {
+  1: [
+    { day: 1, meal1: "R1", meal2: "R2", meal3: "R3", snack: "R4", total: 2072 },
+    { day: 2, meal1: "R5", meal2: "R6", meal3: "R7", snack: "R8", total: 2071 },
+    { day: 3, meal1: "R9", meal2: "R10", meal3: "R11", snack: "R12", total: 2100 },
+    { day: 4, meal1: "R13", meal2: "R14", meal3: "R15", snack: "R16", total: 2099 },
+    { day: 5, meal1: "R17", meal2: "R18", meal3: "R19", snack: "R20", total: 2070 },
+    { day: 6, meal1: "R21", meal2: "R22", meal3: "R23", snack: "R24", total: 2084 },
+    { day: 7, meal1: "R25", meal2: "R26", meal3: "R27", snack: "R28", total: 2096 }
+  ],
+  2: [
+    { day: 8, meal1: "R29", meal2: "R30", meal3: "R3", snack: "R4", total: 2082 },
+    { day: 9, meal1: "R5", meal2: "R31", meal3: "R7", snack: "R8", total: 2051 },
+    { day: 10, meal1: "R32", meal2: "R10", meal3: "R11", snack: "R12", total: 2100 },
+    { day: 11, meal1: "R33", meal2: "R14", meal3: "R15", snack: "R16", total: 2099 },
+    { day: 12, meal1: "R17", meal2: "R18", meal3: "R34", snack: "R20", total: 2100 },
+    { day: 13, meal1: "R21", meal2: "R22", meal3: "R23", snack: "R24", total: 2084 },
+    { day: 14, meal1: "R25", meal2: "R26", meal3: "R35", snack: "R28", total: 2096 }
+  ],
+  3: [
+    { day: 15, meal1: "R1", meal2: "R31", meal3: "R23", snack: "R4", total: 2062 },
+    { day: 16, meal1: "R21", meal2: "R18", meal3: "R19", snack: "R8", total: 2111 },
+    { day: 17, meal1: "R32", meal2: "R10", meal3: "R27", snack: "R12", total: 2080 },
+    { day: 18, meal1: "R13", meal2: "R30", meal3: "R3", snack: "R16", total: 2089 },
+    { day: 19, meal1: "R17", meal2: "R14", meal3: "R15", snack: "R20", total: 2090 },
+    { day: 20, meal1: "R5", meal2: "R22", meal3: "R11", snack: "R24", total: 2064 },
+    { day: 21, meal1: "R25", meal2: "R26", meal3: "R34", snack: "R28", total: 2096 }
+  ],
+  4: [
+    { day: 22, meal1: "R33", meal2: "R2", meal3: "R23", snack: "R4", total: 2072 },
+    { day: 23, meal1: "R5", meal2: "R6", meal3: "R7", snack: "R8", total: 2071 },
+    { day: 24, meal1: "R9", meal2: "R10", meal3: "R35", snack: "R12", total: 2080 },
+    { day: 25, meal1: "R21", meal2: "R14", meal3: "R15", snack: "R16", total: 2099 },
+    { day: 26, meal1: "R17", meal2: "R18", meal3: "R27", snack: "R20", total: 2100 },
+    { day: 27, meal1: "R29", meal2: "R22", meal3: "R19", snack: "R24", total: 2064 },
+    { day: 28, meal1: "R25", meal2: "R26", meal3: "R11", snack: "R28", total: 2116 }
+  ]
+};
 
 const ui = {
   heroKcal: document.getElementById("heroKcal"),
@@ -50,46 +115,49 @@ const ui = {
 };
 
 let state = loadState();
-let data = {
-  assumptions: [],
-  swaps: [],
-  control: [],
-  recipes: [],
-  weeks: {}
-};
-
+let recipes = [];
 let selectedWeek = 1;
-let selectedDay = 1;
+let selectedDayInWeek = 1;
 
 init();
 
 async function init() {
-  for (let w = 1; w <= 4; w++) {
-    const opt = document.createElement("option");
-    opt.value = String(w);
-    opt.textContent = `Tydzień ${w}`;
-    ui.weekSelect.appendChild(opt);
-  }
-  for (let d = 1; d <= 7; d++) {
-    const opt = document.createElement("option");
-    opt.value = String(d);
-    opt.textContent = `Dzień ${d}`;
-    ui.daySelect.appendChild(opt);
-  }
-
-  ui.weekSelect.value = String(selectedWeek);
-  ui.daySelect.value = String(selectedDay);
-
+  fillWeekAndDaySelectors();
   bindEvents();
   applySettingsToUI();
 
-  const mdText = await fetch("plan_diety_cursor.md").then((r) => r.text());
-  data = parsePlanMarkdown(mdText);
+  try {
+    const res = await fetch("recipes.json");
+    recipes = await res.json();
+  } catch (err) {
+    console.error(err);
+    ui.recipesList.innerHTML = "<p>Nie udało się wczytać recipes.json</p>";
+    return;
+  }
 
   renderStaticSections();
   renderPlanTables();
   renderPlanner();
   renderRecipeCards();
+}
+
+function fillWeekAndDaySelectors() {
+  for (let w = 1; w <= 4; w++) {
+    const option = document.createElement("option");
+    option.value = String(w);
+    option.textContent = `Tydzień ${w}`;
+    ui.weekSelect.appendChild(option);
+  }
+
+  for (let d = 1; d <= 7; d++) {
+    const option = document.createElement("option");
+    option.value = String(d);
+    option.textContent = `Dzień ${d}`;
+    ui.daySelect.appendChild(option);
+  }
+
+  ui.weekSelect.value = String(selectedWeek);
+  ui.daySelect.value = String(selectedDayInWeek);
 }
 
 function bindEvents() {
@@ -99,25 +167,28 @@ function bindEvents() {
   });
 
   ui.daySelect.addEventListener("change", () => {
-    selectedDay = Number(ui.daySelect.value);
+    selectedDayInWeek = Number(ui.daySelect.value);
     renderPlanner();
   });
 
   ui.clearDayBtn.addEventListener("click", () => {
-    const key = getDayKey(selectedWeek, selectedDay);
+    const key = getDayKey(selectedWeek, selectedDayInWeek);
     state.planner[key] = { meal1: "", meal2: "", meal3: "", snack: "" };
     saveState();
     renderPlanner();
   });
 
   ui.recipeSearch.addEventListener("input", renderRecipeCards);
+
   ui.weekFilter.addEventListener("change", renderPlanTables);
 
-  ui.exportBtn.addEventListener("click", exportState);
-  ui.importInput.addEventListener("change", importState);
+  ui.openSettingsBtn.addEventListener("click", () => {
+    ui.settingsPanel.classList.remove("hidden");
+  });
 
-  ui.openSettingsBtn.addEventListener("click", () => ui.settingsPanel.classList.remove("hidden"));
-  ui.closeSettingsBtn.addEventListener("click", () => ui.settingsPanel.classList.add("hidden"));
+  ui.closeSettingsBtn.addEventListener("click", () => {
+    ui.settingsPanel.classList.add("hidden");
+  });
 
   ui.targetKcalInput.addEventListener("change", () => {
     state.settings.targetKcal = Number(ui.targetKcalInput.value) || 2100;
@@ -137,11 +208,13 @@ function bindEvents() {
     saveState();
     applySettingsToUI();
   });
+
   ui.showSwapsToggle.addEventListener("change", () => {
     state.settings.showSwaps = ui.showSwapsToggle.checked;
     saveState();
     applySettingsToUI();
   });
+
   ui.showControlToggle.addEventListener("change", () => {
     state.settings.showControl = ui.showControlToggle.checked;
     saveState();
@@ -156,6 +229,9 @@ function bindEvents() {
     renderPlanner();
     ui.settingsPanel.classList.add("hidden");
   });
+
+  ui.exportBtn.addEventListener("click", exportState);
+  ui.importInput.addEventListener("change", importState);
 }
 
 function applySettingsToUI() {
@@ -173,70 +249,53 @@ function applySettingsToUI() {
 }
 
 function renderStaticSections() {
-  ui.assumptionsList.innerHTML = data.assumptions.map((x) => `<li>${escapeHtml(x)}</li>`).join("");
-  ui.swapsList.innerHTML = data.swaps.map((x) => `<li>${escapeHtml(x)}</li>`).join("");
-  ui.controlList.innerHTML = data.control.map((x) => `<li>${escapeHtml(x)}</li>`).join("");
-}
-
-function renderPlanTables() {
-  const filter = ui.weekFilter.value;
-  const weeksToShow = filter === "all" ? [1, 2, 3, 4] : [Number(filter)];
-
-  ui.planTables.innerHTML = weeksToShow.map((weekNum) => {
-    const rows = data.weeks[weekNum] || [];
-    const body = rows.map((r) => `
-      <tr>
-        <td>${r.dayLabel}</td>
-        <td>${linkRecipesInCell(r.meal1)}</td>
-        <td>${linkRecipesInCell(r.meal2)}</td>
-        <td>${linkRecipesInCell(r.meal3)}</td>
-        <td>${linkRecipesInCell(r.snack)}</td>
-        <td>${r.total}</td>
-      </tr>
-    `).join("");
-
-    return `
-      <h3 class="plan-week-title">Tydzień ${weekNum}</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Dzień</th><th>Posiłek 1</th><th>Posiłek 2</th><th>Posiłek 3</th><th>Przekąska</th><th>Suma kcal</th>
-          </tr>
-        </thead>
-        <tbody>${body}</tbody>
-      </table>
-    `;
-  }).join("");
+  ui.assumptionsList.innerHTML = assumptions.map((x) => `<li>${escapeHtml(x)}</li>`).join("");
+  ui.swapsList.innerHTML = swaps.map((x) => `<li>${escapeHtml(x)}</li>`).join("");
+  ui.controlList.innerHTML = controlRules.map((x) => `<li>${escapeHtml(x)}</li>`).join("");
 }
 
 function renderPlanner() {
-  const key = getDayKey(selectedWeek, selectedDay);
+  const key = getDayKey(selectedWeek, selectedDayInWeek);
   if (!state.planner[key]) {
-    state.planner[key] = { meal1: "", meal2: "", meal3: "", snack: "" };
+    const base = getDefaultDay(selectedWeek, selectedDayInWeek);
+    state.planner[key] = {
+      meal1: base?.meal1 || "",
+      meal2: base?.meal2 || "",
+      meal3: base?.meal3 || "",
+      snack: base?.snack || ""
+    };
     saveState();
   }
 
   const selected = state.planner[key];
+
   ui.slotWrap.innerHTML = slotConfig.map((slot) => {
     const options = [
       `<option value="">-- wybierz przepis --</option>`,
-      ...data.recipes.map((r) => `<option value="${r.id}" ${selected[slot.id] === r.id ? "selected" : ""}>${r.id}. ${escapeHtml(r.title)} (${r.kcal} kcal)</option>`)
+      ...recipes.map((r) => {
+        const isSelected = selected[slot.id] === r.id ? "selected" : "";
+        return `<option value="${r.id}" ${isSelected}>${r.id}. ${escapeHtml(r.title)} (${r.kcal} kcal)</option>`;
+      })
     ].join("");
 
-    const recipe = data.recipes.find((r) => r.id === selected[slot.id]);
+    const chosenRecipe = recipes.find((r) => r.id === selected[slot.id]);
+    const chosenText = chosenRecipe
+      ? `${chosenRecipe.id}. ${escapeHtml(chosenRecipe.title)} - ${chosenRecipe.kcal} kcal`
+      : "Brak wybranego przepisu";
+
     return `
       <div class="slot-card">
         <p class="slot-title">${slot.label}</p>
         <select data-slot="${slot.id}">${options}</select>
-        <p class="slot-meta">${recipe ? `${recipe.id}. ${escapeHtml(recipe.title)} - ${recipe.kcal} kcal` : "Brak wybranego przepisu"}</p>
+        <p class="slot-meta">${chosenText}</p>
       </div>
     `;
   }).join("");
 
-  ui.slotWrap.querySelectorAll("select").forEach((sel) => {
-    sel.addEventListener("change", () => {
-      const slot = sel.dataset.slot;
-      state.planner[key][slot] = sel.value;
+  ui.slotWrap.querySelectorAll("select").forEach((selectEl) => {
+    selectEl.addEventListener("change", () => {
+      const slotId = selectEl.dataset.slot;
+      state.planner[key][slotId] = selectEl.value;
       saveState();
       renderPlanner();
     });
@@ -245,23 +304,61 @@ function renderPlanner() {
   const dayKcal = slotConfig.reduce((sum, slot) => {
     const id = selected[slot.id];
     if (!id) return sum;
-    const recipe = data.recipes.find((r) => r.id === id);
+    const recipe = recipes.find((r) => r.id === id);
     return sum + (recipe ? recipe.kcal : 0);
   }, 0);
 
   const diff = dayKcal - state.settings.targetKcal;
   ui.dayKcal.textContent = `Suma dnia: ${dayKcal} kcal`;
-  ui.kcalDiff.textContent = diff === 0 ? "Idealnie pod cel." : (diff > 0 ? `+${diff} kcal powyżej celu` : `${diff} kcal poniżej celu`);
+  ui.kcalDiff.textContent =
+    diff === 0 ? "Idealnie pod cel." : diff > 0 ? `+${diff} kcal powyżej celu` : `${diff} kcal poniżej celu`;
+}
+
+function renderPlanTables() {
+  const weekValue = ui.weekFilter.value || "all";
+  const weeks = weekValue === "all" ? [1, 2, 3, 4] : [Number(weekValue)];
+
+  ui.planTables.innerHTML = weeks.map((weekNum) => {
+    const rows = defaultPlan[weekNum] || [];
+    const rowHtml = rows.map((row) => `
+      <tr>
+        <td>Dzień ${row.day}</td>
+        <td>${recipeLink(row.meal1)}</td>
+        <td>${recipeLink(row.meal2)}</td>
+        <td>${recipeLink(row.meal3)}</td>
+        <td>${recipeLink(row.snack)}</td>
+        <td>${row.total}</td>
+      </tr>
+    `).join("");
+
+    return `
+      <h3 class="plan-week-title">Tydzień ${weekNum}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Dzień</th>
+            <th>Posiłek 1</th>
+            <th>Posiłek 2</th>
+            <th>Posiłek 3</th>
+            <th>Przekąska</th>
+            <th>Suma kcal</th>
+          </tr>
+        </thead>
+        <tbody>${rowHtml}</tbody>
+      </table>
+    `;
+  }).join("");
 }
 
 function renderRecipeCards() {
-  const q = ui.recipeSearch.value.trim().toLowerCase();
-  const items = data.recipes.filter((r) => {
+  const query = ui.recipeSearch.value.trim().toLowerCase();
+
+  const filtered = recipes.filter((r) => {
     const text = `${r.id} ${r.title} ${r.ingredients.join(" ")} ${r.steps.join(" ")}`.toLowerCase();
-    return text.includes(q);
+    return text.includes(query);
   });
 
-  ui.recipesList.innerHTML = items.map((r) => `
+  ui.recipesList.innerHTML = filtered.map((r) => `
     <article class="recipe-card" id="recipe-${r.id}">
       <h3>${r.id}. ${escapeHtml(r.title)}</h3>
       <div class="recipe-meta">${r.kcal} kcal</div>
@@ -277,94 +374,17 @@ function renderRecipeCards() {
   `).join("");
 }
 
-function parsePlanMarkdown(md) {
-  const assumptions = pickBulletList(md, "### Założenia", "### Zamienniki");
-  const swaps = pickBulletList(md, "### Zamienniki i skróty, które możesz stosować", "### Zakres tygodni");
-  const control = pickBulletList(md, "## Kontrola efektów", null);
-
-  const recipes = parseRecipes(md);
-  const weeks = parseWeeks(md);
-
-  return { assumptions, swaps, control, recipes, weeks };
+function getDefaultDay(week, dayInWeek) {
+  const list = defaultPlan[week] || [];
+  return list[dayInWeek - 1] || null;
 }
 
-function parseRecipes(md) {
-  const headerRegex = /^### (R\d+)\.\s(.+?)\s-\sok\.\s(\d+)\skcal$/gm;
-  const headers = [...md.matchAll(headerRegex)];
-
-  return headers.map((m, idx) => {
-    const id = m[1];
-    const title = m[2].trim();
-    const kcal = Number(m[3]);
-    const start = m.index;
-    const end = idx < headers.length - 1 ? headers[idx + 1].index : md.length;
-    const block = md.slice(start, end);
-
-    const ingredients = extractBulletSection(block, "**Składniki:**", "**Wykonanie:**");
-    const steps = extractBulletSection(block, "**Wykonanie:**", null);
-
-    return { id, title, kcal, ingredients, steps };
-  });
+function getDayKey(week, dayInWeek) {
+  return `${week}-${dayInWeek}`;
 }
 
-function parseWeeks(md) {
-  const out = { 1: [], 2: [], 3: [], 4: [] };
-
-  for (let w = 1; w <= 4; w++) {
-    const startMarker = `### Tydzień ${w}`;
-    const endMarker = w < 4 ? `### Tydzień ${w + 1}` : "## Przepisy";
-    const start = md.indexOf(startMarker);
-    const end = md.indexOf(endMarker);
-    if (start === -1 || end === -1) continue;
-    const block = md.slice(start, end);
-    const lines = block.split("\n").filter((l) => l.trim().startsWith("| Dzień"));
-
-    out[w] = lines.map((line) => {
-      const cells = line.split("|").map((c) => c.trim()).filter(Boolean);
-      return {
-        dayLabel: cells[0] || "",
-        meal1: cells[1] || "",
-        meal2: cells[2] || "",
-        meal3: cells[3] || "",
-        snack: cells[4] || "",
-        total: cells[5] || ""
-      };
-    });
-  }
-
-  return out;
-}
-
-function pickBulletList(md, startMarker, endMarker) {
-  const start = md.indexOf(startMarker);
-  if (start === -1) return [];
-  const end = endMarker ? md.indexOf(endMarker, start) : md.length;
-  const part = md.slice(start, end === -1 ? md.length : end);
-  return part
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.startsWith("- "))
-    .map((l) => l.slice(2).trim());
-}
-
-function extractBulletSection(block, startMarker, endMarker) {
-  const start = block.indexOf(startMarker);
-  if (start === -1) return [];
-  const end = endMarker ? block.indexOf(endMarker, start + startMarker.length) : block.length;
-  const part = block.slice(start + startMarker.length, end === -1 ? block.length : end);
-  return part
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.startsWith("- "))
-    .map((l) => l.slice(2).trim());
-}
-
-function linkRecipesInCell(text) {
-  return text.replace(/(R\d+)/g, `<a href="#recipe-$1">$1</a>`);
-}
-
-function getDayKey(week, day) {
-  return `${week}-${day}`;
+function recipeLink(recipeId) {
+  return `<a href="#recipe-${recipeId}">${recipeId}</a>`;
 }
 
 function loadState() {
@@ -395,9 +415,10 @@ function exportState() {
   URL.revokeObjectURL(url);
 }
 
-function importState(e) {
-  const file = e.target.files?.[0];
+function importState(event) {
+  const file = event.target.files && event.target.files[0];
   if (!file) return;
+
   const reader = new FileReader();
   reader.onload = () => {
     try {
@@ -415,11 +436,11 @@ function importState(e) {
     }
   };
   reader.readAsText(file);
-  e.target.value = "";
+  event.target.value = "";
 }
 
-function escapeHtml(str) {
-  return str
+function escapeHtml(text) {
+  return String(text)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
