@@ -14,13 +14,23 @@ const weekdayNames = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek"
 const substitutionGroups = [
   ["pomidor","ogórek","papryka","cukinia","brokuł","marchew","rzodkiewka","kapusta","seler naciowy","kalafior","szparagi","bakłażan","dynia","pieczarki"],
   ["szpinak","rukola","roszponka","sałata rzymska","miks sałat","jarmuż","sałata lodowa"],
+  ["banan","duze jablko","pomarancza","kaki","mandarynki","brzoskwinie","gruszka","kiwi","maliny","truskawki","winogrona","grejpfrut","mango","sliwki","ananas","borowki","czeresnie","owoce suszone"],
   ["mąka jaglana","mąka gryczana","mąka żytnia typ 2000","mąka ryżowa","mąka z tapioki","mąka amarantusowa","mąka orkiszowa","mąka pełnoziarnista","mąka owsiana"],
   ["płatki owsiane","płatki jaglane","płatki gryczane","płatki ryżowe","płatki orkiszowe"],
   ["ryż biały","ryż basmati","ryż brązowy","ryż dziki","komosa ryżowa","kasza gryczana","kasza jaglana","kasza pęczak","kasza bulgur","kasza owsiana","kasza jęczmienna","amarantus","makaron gryczany","makaron jaglany","makaron żytni","makaron ryżowy","makaron pełnoziarnisty","makaron orkiszowy","makaron bezglutenowy"],
   ["ziemniaki","bataty","topinambur"],
   ["chleb żytni razowy","chleb żytni na zakwasie","chleb orkiszowy","chleb pełnoziarnisty","chleb bezglutenowy","bułka owsiana","bułka grahamka","bułka pełnoziarnista"],
   ["hummus","pasty warzywne"],
-  ["miód","syrop klonowy","syrop z agawy"]
+  ["miód","syrop klonowy","syrop z agawy"],
+  ["pierś z kurczaka","pierś z indyka","mielone mięso drobiowe","schab wieprzowy","polędwiczka wieprzowa","polędwica wołowa","rostbef wołowy","tofu naturalne","krewetki tygrysie"],
+  ["dorsz","mintaj","pstrąg","morszczuk","sandacz","tuńczyk","krewetki tygrysie"],
+  ["halibut","łosoś","śledź","makrela","pstrąg tęczowy"],
+  ["ciecierzyca","soczewica","fasola","groch","soja"],
+  ["serek wiejski","ser twarogowy chudy","tofu naturalne"],
+  ["mleko 2%","mleko bezlaktozowe 2%","napój sojowy niesłodzony","napój migdałowy niesłodzony","napój owsiany niesłodzony"],
+  ["orzechy włoskie","orzechy nerkowca","orzechy laskowe","orzechy pistacjowe","orzechy piniowe","orzechy pekan","orzechy arachidowe","siemię lniane","sezam","pestki słonecznika","pestki dyni","wiórki kokosowe","masło orzechowe","nasiona chia"],
+  ["oliwa z oliwek","olej rzepakowy","olej z awokado","olej kokosowy","masło"],
+  ["woda","herbata","kawa","napary ziołowe","mięta","pokrzywa","melisa"]
 ];
 
 const fruitEq = {
@@ -227,8 +237,6 @@ function addCategoriesFromPlan(list, defaultPlan) {
         const id = row[slot.id];
         if (!id) return;
         if (!map[id]) map[id] = new Set();
-
-        // śniadanie + kolacja wymienne
         if (slot.category === "sniadanie" || slot.category === "kolacja") {
           map[id].add("sniadanie");
           map[id].add("kolacja");
@@ -239,10 +247,11 @@ function addCategoriesFromPlan(list, defaultPlan) {
     });
   });
 
-  // fallback: gdy plan pusty, wszystko wybieralne
   return list.map((r) => {
     const cats = Array.from(map[r.id] || []);
-    return { ...r, categories: cats.length ? cats : ["sniadanie", "obiad", "kolacja", "przekaska"] };
+    if (cats.length) return { ...r, categories: cats };
+    if (Array.isArray(r.categories) && r.categories.length) return r;
+    return { ...r, categories: [] };
   });
 }
 
@@ -283,9 +292,20 @@ function renderPlanner() {
   }
 
   const selected = state[dayKey];
+  const selectedIds = new Set(
+    slotConfig.map((slot) => selected[slot.id]).filter(Boolean)
+  );
 
   ui.slotWrap.innerHTML = slotConfig.map((slot) => {
-    const allowed = recipes.filter((r) => (r.categories || []).includes(slot.category));
+    const allowedCategories = slot.category === "sniadanie" || slot.category === "kolacja"
+      ? ["sniadanie", "kolacja"]
+      : [slot.category];
+    const allowed = recipes.filter((r) => {
+      const categories = r.categories || [];
+      const categoryMatch = categories.some((cat) => allowedCategories.includes(cat));
+      // Zachowujemy elastyczność: jeśli przepis jest już wybrany w tym dniu, można go powtórzyć w innym slocie.
+      return categoryMatch || selectedIds.has(r.id);
+    });
     const options = [
       `<option value="">-- wybierz --</option>`,
       ...allowed.map((r) => `<option value="${r.id}" ${selected[slot.id] === r.id ? "selected" : ""}>${escapeHtml(r.title)} (${r.kcal} kcal)</option>`)
@@ -322,10 +342,28 @@ function renderPlanTables() {
   const filter = ui.weekFilter.value || "all";
   const weeks = filter === "all" ? [1, 2, 3, 4] : [Number(filter)];
   const dp = planData.defaultPlan || {};
+  const plannerState = getPlannerState();
 
   ui.planTables.innerHTML = weeks.map((w) => {
-    const rows = dp[String(w)] || [];
-    if (!rows.length) return `<h3>Tydzień ${w}</h3><p>Brak danych planu.</p>`;
+    const rows = Array.from({ length: 7 }, (_, idx) => {
+      const day = idx + 1;
+      const base = dp[String(w)]?.[idx] || {};
+      const local = plannerState[`${w}-${day}`] || {};
+
+      return {
+        day,
+        meal1: local.meal1 ?? base.meal1 ?? "",
+        meal2: local.meal2 ?? base.meal2 ?? "",
+        meal3: local.meal3 ?? base.meal3 ?? "",
+        snack: local.snack ?? base.snack ?? ""
+      };
+    });
+
+    const hasAnyMeal = rows.some((row) => slotConfig.some((slot) => row[slot.id]));
+    if (!hasAnyMeal) return `<h3>Tydzień ${w}</h3><p>Brak danych planu.</p>`;
+
+    const totalForRow = (row) =>
+      slotConfig.reduce((sum, slot) => sum + (recipesById[row[slot.id]]?.kcal || 0), 0);
 
     return `
       <h3>Tydzień ${w}</h3>
@@ -344,7 +382,7 @@ function renderPlanTables() {
                 <td>${planRecipeCell(row.meal2)}</td>
                 <td>${planRecipeCell(row.meal3)}</td>
                 <td>${planRecipeCell(row.snack)}</td>
-                <td>${row.total ?? "-"}</td>
+                <td>${totalForRow(row) || "-"}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -487,9 +525,19 @@ function computeConvertedGrams(originalIngredient, targetName) {
 
   const originalNorm = normalizeText(originalIngredient);
   const targetNorm = normalizeText(targetName);
+  const isOriginalDriedFruit = isDriedFruit(originalNorm);
+  const isTargetDriedFruit = isDriedFruit(targetNorm);
 
   const originalFruitKey = Object.keys(fruitEq).find((k) => containsAlias(originalNorm, k));
   const targetFruitKey = Object.keys(fruitEq).find((k) => containsAlias(targetNorm, k));
+
+  // owoce świeże <-> suszone
+  if (originalFruitKey && isTargetDriedFruit) {
+    return Math.round((grams * 20) / 150);
+  }
+  if (isOriginalDriedFruit && targetFruitKey) {
+    return Math.round((grams * 150) / 20);
+  }
 
   // owoce
   if (originalFruitKey && targetFruitKey) {
@@ -505,6 +553,15 @@ function computeConvertedGrams(originalIngredient, targetName) {
 
   // domyślnie 1:1
   return Math.round(grams);
+}
+
+function isDriedFruit(textNorm) {
+  return textNorm.includes("susz")
+    || textNorm.includes("rodzyn")
+    || textNorm.includes("daktyl")
+    || textNorm.includes("morela suszona")
+    || textNorm.includes("sliwka suszona")
+    || textNorm.includes("zurawina suszona");
 }
 
 function formatCategory(c) {
