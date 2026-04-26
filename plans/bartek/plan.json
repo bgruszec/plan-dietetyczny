@@ -1,0 +1,25 @@
+{
+  "targetKcal": 2100,
+  "defaultPlan": {
+    "1": [
+      { "day": 1, "meal1": "R1", "meal2": "R2", "meal3": "R3", "snack": "R4", "total": 2072 },
+      { "day": 2, "meal1": "R5", "meal2": "R6", "meal3": "R7", "snack": "R8", "total": 2071 },
+      { "day": 3, "meal1": "R9", "meal2": "R10", "meal3": "R11", "snack": "R12", "total": 2100 },
+      { "day": 4, "meal1": "R13", "meal2": "R14", "meal3": "R15", "snack": "R16", "total": 2099 },
+      { "day": 5, "meal1": "R17", "meal2": "R18", "meal3": "R19", "snack": "R20", "total": 2070 },
+      { "day": 6, "meal1": "R21", "meal2": "R22", "meal3": "R23", "snack": "R24", "total": 2084 },
+      { "day": 7, "meal1": "R25", "meal2": "R26", "meal3": "R27", "snack": "R28", "total": 2096 }
+    ],
+    "2": [
+      { "day": 8, "meal1": "R29", "meal2": "R30", "meal3": "R3", "snack": "R4", "total": 2082 },
+      { "day": 9, "meal1": "R5", "meal2": "R31", "meal3": "R7", "snack": "R8", "total": 2051 },
+      { "day": 10, "meal1": "R32", "meal2": "R10", "meal3": "R11", "snack": "R12", "total": 2100 },
+      { "day": 11, "meal1": "R33", "meal2": "R14", "meal3": "R15", "snack": "R16", "total": 2099 },
+      { "day": 12, "meal1": "R17", "meal2": "R18", "meal3": "R34", "snack": "R20", "total": 2100 },
+      { "day": 13, "meal1": "R21", "meal2": "R22", "meal3": "R23", "snack": "R24", "total": 2084 },
+      { "day": 14, "meal1": "R25", "meal2": "R26", "meal3": "R35", "snack": "R28", "total": 2096 }
+    },
+    "3": [],
+    "4": []
+  }
+}
