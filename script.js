@@ -297,6 +297,7 @@ async function pullRemoteState() {
   renderPlanTables();
   renderMetrics();
   fillSettingsFromState();
+  applyStickyMetricFormDefaults({ setTodayDate: false });
 }
 
 async function ensureUserProfile() {
@@ -563,6 +564,7 @@ async function switchProfile(profileId) {
   renderPlanTables();
   renderRecipes();
   renderMetrics();
+  applyStickyMetricFormDefaults({ setTodayDate: true });
 }
 
 function addCategoriesFromPlan(list, defaultPlan) {
@@ -1567,8 +1569,42 @@ function formatCategory(c) {
   return "przekąska";
 }
 
+function todayLocalISODate() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function getMetricsHistorySorted() {
+  let history = [];
+  try {
+    history = JSON.parse(localStorage.getItem(metricsKey()) || "[]");
+  } catch {
+    history = [];
+  }
+  history.sort((a, b) => a.date.localeCompare(b.date));
+  return history;
+}
+
+/** Uzupełnia datę (dzisiaj), wiek, wzrost i płeć z ostatniego zapisanego pomiaru. */
+function applyStickyMetricFormDefaults(options = {}) {
+  const { setTodayDate = false } = options;
+  if (!ui.mDate) return;
+
+  if (setTodayDate || !String(ui.mDate.value || "").trim()) {
+    ui.mDate.value = todayLocalISODate();
+  }
+
+  const history = getMetricsHistorySorted();
+  const last = history.length ? history[history.length - 1] : null;
+  if (!last) return;
+
+  if (last.age != null && last.age !== "") ui.mAge.value = last.age;
+  if (last.height != null && last.height !== "") ui.mHeight.value = last.height;
+  if (last.gender) ui.mGender.value = last.gender;
+}
+
 async function saveMetric() {
-  const date = ui.mDate.value || new Date().toISOString().slice(0, 10);
+  const date = ui.mDate.value || todayLocalISODate();
   const gender = ui.mGender.value;
   const age = Number(ui.mAge.value) || null;
   const weight = Number(ui.mWeight.value) || null;
@@ -1592,6 +1628,12 @@ async function saveMetric() {
   history.sort((a, b) => a.date.localeCompare(b.date));
   localStorage.setItem(metricsKey(), JSON.stringify(history));
   await saveMetricsRemote(entry);
+
+  ui.mWeight.value = "";
+  ui.mWaist.value = "";
+  ui.mChest.value = "";
+  ui.mHips.value = "";
+  applyStickyMetricFormDefaults({ setTodayDate: true });
 
   renderMetrics();
 }
@@ -1777,6 +1819,10 @@ function showSection(sectionKey) {
     btn.classList.toggle("is-active", active);
     btn.setAttribute("aria-selected", active ? "true" : "false");
   });
+
+  if (sectionKey === "metrics") {
+    applyStickyMetricFormDefaults({ setTodayDate: true });
+  }
 }
 
 function getTargetKcal() {

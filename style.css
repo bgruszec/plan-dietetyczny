@@ -118,8 +118,9 @@ a:focus-visible {
   transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
 }
 .menu-btn.is-active {
-  color: var(--text);
-  border-color: var(--accent);
+  color: #fff;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--accent) 88%, #fff 12%), var(--accent));
+  border-color: color-mix(in srgb, var(--accent) 70%, #0a1628);
   box-shadow: var(--shadow);
   transform: translateY(-1px);
 }
@@ -135,9 +136,9 @@ a:focus-visible {
   color: var(--muted);
 }
 .menu-btn.is-active .menu-btn-icon {
-  border-color: var(--accent);
-  color: var(--text);
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
 }
 .menu-btn-label {
   text-align: left;
@@ -248,6 +249,7 @@ textarea {
   background: var(--accent);
   border: none;
   cursor: pointer;
+  color: #fff;
 }
 .row {
   display: flex;
