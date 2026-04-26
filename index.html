@@ -28,14 +28,8 @@
       <section id="planner" class="card">
         <h2>Twój planer</h2>
         <div class="planner-row">
-          <label>
-            Tydzień
-            <select id="weekSelect"></select>
-          </label>
-          <label>
-            Dzień
-            <select id="daySelect"></select>
-          </label>
+          <label>Tydzień <select id="weekSelect"></select></label>
+          <label>Dzień <select id="daySelect"></select></label>
         </div>
 
         <div id="slotWrap" class="slot-wrap"></div>
@@ -83,7 +77,7 @@
       <section id="recipes" class="card">
         <h2>Przepisy</h2>
         <input id="recipeSearch" type="text" placeholder="Szukaj przepisu..." />
-        <div id="recipesList" class="recipes-grid"></div>
+        <div id="recipesList"></div>
       </section>
 
       <section id="control" class="card">
@@ -95,7 +89,6 @@
     <aside id="settingsPanel" class="settings-panel hidden">
       <div class="settings-content">
         <h3>Ustawienia</h3>
-
         <label>
           Cel kcal / dzień
           <input id="targetKcalInput" type="number" min="1200" max="4000" step="10" />
@@ -109,18 +102,9 @@
           </select>
         </label>
 
-        <label class="check">
-          <input id="showAssumptionsToggle" type="checkbox" />
-          Pokaż sekcję „Założenia”
-        </label>
-        <label class="check">
-          <input id="showSwapsToggle" type="checkbox" />
-          Pokaż sekcję „Zamienniki”
-        </label>
-        <label class="check">
-          <input id="showControlToggle" type="checkbox" />
-          Pokaż sekcję „Kontrola efektów”
-        </label>
+        <label class="check"><input id="showAssumptionsToggle" type="checkbox" /> Pokaż „Założenia”</label>
+        <label class="check"><input id="showSwapsToggle" type="checkbox" /> Pokaż „Zamienniki”</label>
+        <label class="check"><input id="showControlToggle" type="checkbox" /> Pokaż „Kontrola efektów”</label>
 
         <div class="settings-actions">
           <button id="resetAllBtn" class="btn danger">Reset wszystkiego</button>
