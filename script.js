@@ -1287,15 +1287,18 @@ function renderPlanner() {
     });
   });
 
-  const baseKcal = slotConfig.reduce((sum, slot) => sum + (recipesById[selected[slot.id]]?.kcal || 0), 0);
+  const eatenBaseKcal = slotConfig.reduce((sum, slot) => {
+    if (!checks[dayKey]?.[slot.id]) return sum;
+    return sum + (recipesById[selected[slot.id]]?.kcal || 0);
+  }, 0);
   const extraKcal = extraForDay
     .filter((x) => x.eaten !== false)
     .reduce((sum, x) => sum + (Number(x.kcal) || 0), 0);
-  const dayKcal = baseKcal + extraKcal;
+  const dayKcal = eatenBaseKcal + extraKcal;
   const diff = dayKcal - getTargetKcal();
   const completion = dayCompletionForEntry(selected, checks[dayKey] || {});
 
-  ui.dayKcal.textContent = `Suma dnia: ${dayKcal} kcal${extraKcal ? ` (w tym spoza planu: +${extraKcal})` : ""}`;
+  ui.dayKcal.textContent = `${dayKcal}/${getTargetKcal()} kcal${extraKcal ? ` (spoza planu: +${extraKcal})` : ""}`;
   ui.kcalDiff.textContent = diff === 0 ? "Idealnie pod cel." : diff > 0 ? `+${diff} kcal` : `${diff} kcal`;
   if (ui.dayCompletion) ui.dayCompletion.textContent = `Realizacja dnia: ${completion.done}/${completion.total}`;
 }
