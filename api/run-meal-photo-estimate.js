@@ -26,9 +26,7 @@ export async function runMealPhotoEstimate(req, res) {
     "gemini-2.5-pro",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
-    "gemini-1.5-pro",
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-pro-latest"
+    "gemini-1.5-pro"
   ]);
   if (!apiKey) {
     res.status(500).json({ error: "Brak GEMINI_API_KEY na serwerze." });
