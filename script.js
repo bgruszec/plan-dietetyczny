@@ -105,6 +105,7 @@ const ui = {
   dayKcal: document.getElementById("dayKcal"),
   kcalDiff: document.getElementById("kcalDiff"),
   recipeSearch: document.getElementById("recipeSearch"),
+  recipeCategoryFilter: document.getElementById("recipeCategoryFilter"),
   recipesList: document.getElementById("recipesList"),
   planTables: document.getElementById("planTables"),
 
@@ -543,6 +544,7 @@ function bindEvents() {
 
   ui.weekFilter.addEventListener("change", renderPlanTables);
   ui.recipeSearch.addEventListener("input", renderRecipes);
+  ui.recipeCategoryFilter?.addEventListener("change", renderRecipes);
   ui.saveMetricBtn.addEventListener("click", saveMetric);
   ui.copyDayBtn.addEventListener("click", copySelectedDayPlan);
   ui.autoPlanBtn.addEventListener("click", autoFillFullPlan);
@@ -804,12 +806,15 @@ async function loadDefaultPlanForProfile(profileId) {
 }
 
 async function syncLunchesBetweenProfiles() {
-  if (!["bartek", "paulina"].includes(currentProfile)) {
+  const bartekProfileId = profiles.find((p) => String(p.id || "").toLowerCase() === "bartek")?.id;
+  const paulinaProfileId = profiles.find((p) => String(p.id || "").toLowerCase() === "paulina")?.id;
+  if (!bartekProfileId || !paulinaProfileId) {
     alert("Synchronizacja działa tylko dla profili Bartek i Paulina.");
     return;
   }
-  const source = currentProfile;
-  const target = source === "bartek" ? "paulina" : "bartek";
+  const currentLower = String(currentProfile || "").toLowerCase();
+  const source = currentLower === "paulina" ? paulinaProfileId : bartekProfileId;
+  const target = source === bartekProfileId ? paulinaProfileId : bartekProfileId;
   if (!confirm(`Skopiować obiady (meal2) z profilu ${source} do profilu ${target} dla wszystkich 28 dni?`)) return;
 
   const [sourcePlan, targetPlan] = await Promise.all([
@@ -1806,10 +1811,12 @@ function planRecipeCell(id) {
 
 function renderRecipes() {
   const q = ui.recipeSearch.value.trim().toLowerCase();
+  const categoryFilter = ui.recipeCategoryFilter?.value || "all";
   const filtered = recipes.filter((r) =>
     `${r.id} ${r.title} ${r.ingredients.join(" ")} ${r.steps.join(" ")}`
       .toLowerCase()
       .includes(q)
+    && (categoryFilter === "all" || (r.categories || []).includes(categoryFilter))
   );
 
   ui.recipesList.innerHTML = filtered.map((r) => `
