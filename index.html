@@ -228,6 +228,7 @@
           <button id="photoMealCameraBtn" type="button">Zrób zdjęcie aparatem</button>
           <button id="photoMealAnalyzeBtn" class="btn" type="button">Analizuj zdjęcie</button>
           <button id="photoMealAddToDayBtn" type="button">Dodaj do dnia jako zjedzony</button>
+          <button id="photoMealClearBtn" type="button">Wyczyść pola zdjęcia</button>
         </div>
         <div id="photoMealResult" class="recipe-card" hidden></div>
         <h3>Historia zdjęć</h3>
@@ -283,6 +284,15 @@
             <input id="reminderMeal3Time" type="time" value="19:00" />
           </label>
         </div>
+        <div class="grid">
+          <label>Źródło synchronizacji obiadów
+            <select id="lunchSyncSourceSelect">
+              <option value="auto">Automatycznie (wg aktywnego profilu)</option>
+              <option value="bartek">Od Bartka do Pauliny</option>
+              <option value="paulina">Od Pauliny do Bartka</option>
+            </select>
+          </label>
+        </div>
         <div class="row">
           <button id="saveSettingsBtn" class="btn">Zapisz ustawienia</button>
           <button id="resetPlannerBtn" type="button">Resetuj planer</button>
@@ -295,6 +305,7 @@
         <input id="importBackupInput" type="file" accept="application/json" hidden />
         <p class="settings-note">Ustawienia dotyczą aktualnie wybranego profilu.</p>
         <p class="settings-note">Przypomnienia działają lokalnie na tym urządzeniu (iPhone) i wymagają zgody na powiadomienia.</p>
+        <p class="settings-note" id="reminderStatusText">Status przypomnień: wyłączone</p>
       </section>
     </main>
     </div>

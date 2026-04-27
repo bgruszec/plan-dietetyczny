@@ -159,12 +159,14 @@ const ui = {
   resetPlannerBtn: document.getElementById("resetPlannerBtn"),
   syncLunchesBtn: document.getElementById("syncLunchesBtn"),
   reminderPreset: document.getElementById("reminderPreset"),
+  lunchSyncSourceSelect: document.getElementById("lunchSyncSourceSelect"),
   reminderMeal1Time: document.getElementById("reminderMeal1Time"),
   reminderMeal2Time: document.getElementById("reminderMeal2Time"),
   reminderSnackTime: document.getElementById("reminderSnackTime"),
   reminderMeal3Time: document.getElementById("reminderMeal3Time"),
   enableMealRemindersBtn: document.getElementById("enableMealRemindersBtn"),
   disableMealRemindersBtn: document.getElementById("disableMealRemindersBtn"),
+  reminderStatusText: document.getElementById("reminderStatusText"),
   exportBackupBtn: document.getElementById("exportBackupBtn"),
   importBackupBtn: document.getElementById("importBackupBtn"),
   importBackupInput: document.getElementById("importBackupInput"),
@@ -198,6 +200,7 @@ const ui = {
   photoMealCameraBtn: document.getElementById("photoMealCameraBtn"),
   photoMealAnalyzeBtn: document.getElementById("photoMealAnalyzeBtn"),
   photoMealAddToDayBtn: document.getElementById("photoMealAddToDayBtn"),
+  photoMealClearBtn: document.getElementById("photoMealClearBtn"),
   photoMealResult: document.getElementById("photoMealResult"),
   photoMealHistory: document.getElementById("photoMealHistory"),
   onboardingBackdrop: document.getElementById("onboardingBackdrop"),
@@ -723,6 +726,7 @@ function bindEvents() {
   ui.photoMealCameraBtn?.addEventListener("click", capturePhotoMealWithCamera);
   ui.photoMealAnalyzeBtn?.addEventListener("click", analyzePhotoMeal);
   ui.photoMealAddToDayBtn?.addEventListener("click", addPhotoMealToSelectedDayAsEaten);
+  ui.photoMealClearBtn?.addEventListener("click", clearPhotoMealForm);
   ui.photoMealImage?.addEventListener("change", () => {
     // Prefer explicit file selection when user changes picker input.
     photoMealCapturedDataUrl = "";
@@ -1064,6 +1068,24 @@ function applyReminderPreset(preset) {
   if (ui.reminderMeal3Time) ui.reminderMeal3Time.value = values.meal3;
 }
 
+function remindersEnabledKey() {
+  return `${APP_KEY}:${currentProfile}:reminders-enabled`;
+}
+
+function setRemindersEnabled(value) {
+  localStorage.setItem(remindersEnabledKey(), value ? "1" : "0");
+  renderReminderStatus();
+}
+
+function getRemindersEnabled() {
+  return localStorage.getItem(remindersEnabledKey()) === "1";
+}
+
+function renderReminderStatus() {
+  if (!ui.reminderStatusText) return;
+  ui.reminderStatusText.textContent = `Status przypomnień: ${getRemindersEnabled() ? "włączone" : "wyłączone"}`;
+}
+
 function dayCompletionForEntry(entry, checks) {
   const planned = slotConfig.filter((slot) => String(entry?.[slot.id] || "").trim());
   const total = planned.length;
@@ -1088,8 +1110,13 @@ async function syncLunchesBetweenProfiles() {
     alert("Synchronizacja działa tylko dla profili Bartek i Paulina.");
     return;
   }
+  const selectedSource = String(ui.lunchSyncSourceSelect?.value || "auto").toLowerCase();
   const currentLower = String(currentProfile || "").toLowerCase();
-  const source = currentLower === "paulina" ? paulinaProfileId : bartekProfileId;
+  const source = selectedSource === "bartek"
+    ? bartekProfileId
+    : selectedSource === "paulina"
+      ? paulinaProfileId
+      : (currentLower === "paulina" ? paulinaProfileId : bartekProfileId);
   const target = source === bartekProfileId ? paulinaProfileId : bartekProfileId;
   if (!confirm(`Skopiować obiady (meal2) z profilu ${source} do profilu ${target} dla wszystkich 28 dni?`)) return;
 
@@ -1162,6 +1189,7 @@ async function enableMealReminders() {
     };
   });
   await plugin.schedule({ notifications });
+  setRemindersEnabled(true);
   alert("Włączono codzienne przypomnienia o posiłkach.");
 }
 
@@ -1169,6 +1197,7 @@ async function disableMealReminders() {
   const plugin = getLocalNotificationsPlugin();
   if (!plugin) return;
   await plugin.cancel({ notifications: Object.values(MEAL_REMINDER_IDS).map((id) => ({ id })) });
+  setRemindersEnabled(false);
   alert("Wyłączono przypomnienia.");
 }
 
@@ -2284,6 +2313,18 @@ function renderPhotoMealHistory() {
   `).join("");
 }
 
+function clearPhotoMealForm() {
+  photoMealCapturedDataUrl = "";
+  pendingPhotoMealEstimate = null;
+  if (ui.photoMealImage) ui.photoMealImage.value = "";
+  if (ui.photoMealNote) ui.photoMealNote.value = "";
+  if (ui.photoMealName) ui.photoMealName.value = "";
+  if (ui.photoMealResult) {
+    ui.photoMealResult.hidden = true;
+    ui.photoMealResult.innerHTML = "";
+  }
+}
+
 async function analyzePhotoMeal() {
   const file = ui.photoMealImage?.files?.[0];
   if (!file && !photoMealCapturedDataUrl) {
@@ -2960,6 +3001,7 @@ function fillSettingsFromState() {
   if (ui.reminderMeal3Time) ui.reminderMeal3Time.value = reminders.meal3;
   if (ui.reminderPreset) ui.reminderPreset.value = reminderPresetFromTimes(reminders);
   ui.themeSelect.value = document.body.dataset.theme || "dark";
+  renderReminderStatus();
 }
 
 async function saveSettings() {
