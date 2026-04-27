@@ -96,6 +96,26 @@ a:focus-visible {
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+.profile-create-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.profile-create-wrap input {
+  min-width: 200px;
+}
+.recipe-create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.recipe-create-grid textarea {
+  min-height: 84px;
+}
+.recipe-create-grid #addRecipeBtn {
+  grid-column: 1 / -1;
+}
 .main-menu {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

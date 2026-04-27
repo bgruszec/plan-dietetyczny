@@ -139,8 +139,16 @@ const ui = {
   themeSelect: document.getElementById("themeSelect"),
   targetKcalInput: document.getElementById("targetKcalInput"),
   saveSettingsBtn: document.getElementById("saveSettingsBtn"),
-  resetPlannerBtn: document.getElementById("resetPlannerBtn")
-  ,
+  resetPlannerBtn: document.getElementById("resetPlannerBtn"),
+  saveAsNewPlanBtn: document.getElementById("saveAsNewPlanBtn"),
+  newProfileName: document.getElementById("newProfileName"),
+  createProfileBtn: document.getElementById("createProfileBtn"),
+  newRecipeTitle: document.getElementById("newRecipeTitle"),
+  newRecipeKcal: document.getElementById("newRecipeKcal"),
+  newRecipeCategories: document.getElementById("newRecipeCategories"),
+  newRecipeIngredients: document.getElementById("newRecipeIngredients"),
+  newRecipeSteps: document.getElementById("newRecipeSteps"),
+  addRecipeBtn: document.getElementById("addRecipeBtn"),
   authCard: document.getElementById("authCard"),
   authStatus: document.getElementById("authStatus"),
   authEmail: document.getElementById("authEmail"),
@@ -175,7 +183,6 @@ async function init() {
   fillWeekDaySelectors();
   initMenu();
   bindEvents();
-  await loadProfiles();
   initShoppingSelectors();
   await restoreSessionAndBootstrap();
 }
@@ -194,6 +201,7 @@ async function initSupabase() {
 
 async function restoreSessionAndBootstrap() {
   if (!supabase) {
+    await loadProfiles();
     setAuthUi(null, "Tryb lokalny (bez logowania).", true);
     await switchProfile(currentProfile);
     return;
@@ -204,6 +212,8 @@ async function restoreSessionAndBootstrap() {
   setAuthUi(authUser);
 
   if (authUser) {
+    await loadProfiles();
+    if (!currentProfile) return;
     await switchProfile(currentProfile);
     await pullRemoteState();
     return;
@@ -219,6 +229,8 @@ function setAuthUi(user, message = "", forceShowApp = false) {
   ui.authStatus.textContent = signed ? `Zalogowany: ${user.email}` : "";
   ui.topbarTrail.classList.toggle("hidden", !showTrail);
   ui.authChip.classList.toggle("hidden", !signed);
+  if (ui.createProfileBtn) ui.createProfileBtn.disabled = !signed;
+  if (ui.newProfileName) ui.newProfileName.disabled = !signed;
   ui.appShell.forEach((el) => el.classList.toggle("hidden", !signed && !forceShowApp));
   ui.authCard.classList.toggle("hidden", signed || forceShowApp);
   refreshHeroKcal();
@@ -255,6 +267,8 @@ async function loginUser() {
   }
   authUser = data.session?.user ?? data.user ?? null;
   setAuthUi(authUser, "Zalogowano.");
+  await loadProfiles();
+  if (!currentProfile) return;
   await switchProfile(currentProfile);
   await pullRemoteState();
 }
@@ -264,10 +278,14 @@ async function logoutUser() {
   await supabase.auth.signOut();
   authUser = null;
   setAuthUi(null, "Wylogowano.");
+  profiles = [];
+  currentProfile = "";
+  ui.profileSelect.innerHTML = "";
+  ui.profileSelect.disabled = true;
 }
 
 async function pullRemoteState() {
-  if (!supabase || !authUser) return;
+  if (!supabase || !authUser || !currentProfile) return;
   await ensureUserProfile();
 
   const profile = await loadRemoteProfileSettings();
@@ -301,11 +319,11 @@ async function pullRemoteState() {
   applyStickyMetricFormDefaults({ setTodayDate: false });
 }
 
-async function ensureUserProfile() {
-  if (!supabase || !authUser) return;
+async function ensureUserProfile(profileId = currentProfile) {
+  if (!supabase || !authUser || !profileId) return;
   const payload = {
     user_id: authUser.id,
-    profile_id: currentProfile,
+    profile_id: profileId,
     target_kcal: Number(loadProfileSettings().targetKcal || planData.targetKcal || 2100),
     theme: document.body.dataset.theme || "dark",
     updated_at: new Date().toISOString()
@@ -349,11 +367,11 @@ async function loadRemoteMetricsEntries() {
   return data || null;
 }
 
-async function savePlannerEntryRemote(week, day, entry) {
-  if (!supabase || !authUser) return;
+async function savePlannerEntryRemote(week, day, entry, profileId = currentProfile) {
+  if (!supabase || !authUser || !profileId) return;
   await supabase.from("planner_entries").upsert({
     user_id: authUser.id,
-    profile_id: currentProfile,
+    profile_id: profileId,
     week,
     day,
     meal1: entry.meal1 || "",
@@ -364,12 +382,12 @@ async function savePlannerEntryRemote(week, day, entry) {
   }, { onConflict: "user_id,profile_id,week,day" });
 }
 
-async function saveSettingsRemote(targetKcal) {
-  if (!supabase || !authUser) return;
-  await ensureUserProfile();
+async function saveSettingsRemote(targetKcal, profileId = currentProfile) {
+  if (!supabase || !authUser || !profileId) return;
+  await ensureUserProfile(profileId);
   await supabase.from("profiles").upsert({
     user_id: authUser.id,
-    profile_id: currentProfile,
+    profile_id: profileId,
     target_kcal: targetKcal,
     theme: document.body.dataset.theme || "dark",
     updated_at: new Date().toISOString()
@@ -395,6 +413,48 @@ async function saveConsultHistory(question, answer, payload) {
     changes_json: payload || [],
     created_at: new Date().toISOString()
   });
+}
+
+async function loadUserRecipesRemote(profileId = currentProfile) {
+  if (!supabase || !authUser || !profileId) return [];
+  const { data, error } = await supabase
+    .from("user_recipes")
+    .select("recipe_id,title,kcal,ingredients,steps,categories")
+    .eq("user_id", authUser.id)
+    .eq("profile_id", profileId);
+  if (error) return [];
+  return data || [];
+}
+
+function mergeRecipesWithUserEntries(baseRecipes, userRows) {
+  if (!Array.isArray(userRows) || !userRows.length) return baseRecipes;
+  const merged = Object.fromEntries(baseRecipes.map((r) => [r.id, { ...r }]));
+  userRows.forEach((row) => {
+    merged[row.recipe_id] = {
+      id: row.recipe_id,
+      title: row.title,
+      kcal: Number(row.kcal || 0),
+      ingredients: Array.isArray(row.ingredients) ? row.ingredients : [],
+      steps: Array.isArray(row.steps) ? row.steps : [],
+      categories: Array.isArray(row.categories) ? row.categories : []
+    };
+  });
+  return Object.values(merged);
+}
+
+async function upsertUserRecipeRemote(recipe, profileId = currentProfile) {
+  if (!supabase || !authUser || !profileId || !recipe?.id) return;
+  await supabase.from("user_recipes").upsert({
+    user_id: authUser.id,
+    profile_id: profileId,
+    recipe_id: recipe.id,
+    title: recipe.title,
+    kcal: Number(recipe.kcal || 0),
+    ingredients: recipe.ingredients || [],
+    steps: recipe.steps || [],
+    categories: recipe.categories || [],
+    updated_at: new Date().toISOString()
+  }, { onConflict: "user_id,profile_id,recipe_id" });
 }
 
 function recipeOverridesStorageKey() {
@@ -459,6 +519,7 @@ function bindEvents() {
 
   ui.profileSelect.addEventListener("change", async () => {
     const id = ui.profileSelect.value;
+    if (!id) return;
     localStorage.setItem(ACTIVE_PROFILE_KEY, id);
     await switchProfile(id);
     await pullRemoteState();
@@ -485,6 +546,9 @@ function bindEvents() {
   ui.autoPlanBtn.addEventListener("click", autoFillFullPlan);
   ui.saveSettingsBtn.addEventListener("click", saveSettings);
   ui.resetPlannerBtn.addEventListener("click", resetPlannerForCurrentProfile);
+  ui.createProfileBtn.addEventListener("click", createProfileFromInput);
+  ui.saveAsNewPlanBtn.addEventListener("click", saveAsNewPlan);
+  ui.addRecipeBtn.addEventListener("click", addRecipeFromForm);
   ui.themeSelect.addEventListener("change", () => applyTheme(ui.themeSelect.value));
   ui.generateShoppingBtn.addEventListener("click", generateShoppingList);
   ui.copyShoppingBtn.addEventListener("click", copyShoppingList);
@@ -505,21 +569,111 @@ function bindEvents() {
 }
 
 async function loadProfiles() {
-  try {
-    const res = await fetch("plans/profiles.json");
-    profiles = await res.json();
-  } catch {
-    profiles = [{ id: "bartek", name: "Bartek" }, { id: "paulina", name: "Paulina" }];
+  if (supabase && authUser) {
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("profile_id,name")
+      .order("name", { ascending: true });
+    if (!error) {
+      profiles = (data || []).map((p) => ({ id: p.profile_id, name: p.name }));
+    }
+  } else {
+    try {
+      const res = await fetch("plans/profiles.json");
+      profiles = await res.json();
+    } catch {
+      profiles = [{ id: "bartek", name: "Bartek" }, { id: "paulina", name: "Paulina" }];
+    }
   }
 
   ui.profileSelect.innerHTML = profiles.map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
+  ui.profileSelect.disabled = profiles.length === 0;
+  ui.profileSelect.innerHTML = profiles.length
+    ? ui.profileSelect.innerHTML
+    : `<option value="">Brak profili</option>`;
+
   const saved = localStorage.getItem(ACTIVE_PROFILE_KEY);
   const exists = profiles.some((p) => p.id === saved);
-  currentProfile = exists ? saved : (profiles[0]?.id || "bartek");
-  ui.profileSelect.value = currentProfile;
+  currentProfile = exists ? saved : (profiles[0]?.id || "");
+  ui.profileSelect.value = currentProfile || "";
+}
+
+function slugifyProfileId(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+async function createProfileFromInput() {
+  if (!supabase || !authUser) return;
+  const name = ui.newProfileName.value.trim();
+  if (!name) {
+    alert("Podaj nazwę profilu.");
+    return;
+  }
+  let profileId = slugifyProfileId(name);
+  if (!profileId) profileId = `profil-${Date.now()}`;
+  const baseId = profileId;
+  let suffix = 1;
+  while (profiles.some((p) => p.id === profileId)) {
+    suffix += 1;
+    profileId = `${baseId}-${suffix}`;
+  }
+
+  const { error } = await supabase.from("user_profiles").insert({
+    user_id: authUser.id,
+    profile_id: profileId,
+    name
+  });
+  if (error) {
+    alert(`Nie udało się utworzyć profilu: ${error.message}`);
+    return;
+  }
+  localStorage.setItem(ACTIVE_PROFILE_KEY, profileId);
+  await loadProfiles();
+  ui.newProfileName.value = "";
+  if (currentProfile) {
+    await switchProfile(currentProfile);
+    await pullRemoteState();
+  }
+}
+
+async function saveAsNewPlan() {
+  if (!supabase || !authUser) {
+    alert("Ta opcja działa po zalogowaniu.");
+    return;
+  }
+  const sourceProfile = currentProfile;
+  const sourcePlanner = getPlannerState();
+  const sourceSettings = loadProfileSettings();
+  const name = prompt("Nazwa nowego planu/profilu", "Nowy plan");
+  if (name === null) return;
+  ui.newProfileName.value = name;
+  await createProfileFromInput();
+  if (!currentProfile || currentProfile === sourceProfile) return;
+  localStorage.setItem(settingsKey(), JSON.stringify(sourceSettings || {}));
+  setPlannerState(sourcePlanner || {});
+  await saveSettingsRemote(Number(sourceSettings?.targetKcal || getTargetKcal()), currentProfile);
+  for (const key of Object.keys(sourcePlanner || {})) {
+    const [week, day] = key.split("-").map(Number);
+    await savePlannerEntryRemote(week, day, sourcePlanner[key], currentProfile);
+  }
+  renderPlanner();
+  renderPlanTables();
+  alert("Utworzono nowy profil z kopią planu.");
 }
 
 async function switchProfile(profileId) {
+  if (!profileId) {
+    currentProfile = "";
+    ui.slotWrap.innerHTML = "<p>Utwórz profil, aby rozpocząć planowanie.</p>";
+    ui.planTables.innerHTML = "";
+    ui.recipesList.innerHTML = "";
+    return;
+  }
   currentProfile = profileId;
   localStorage.setItem(ACTIVE_PROFILE_KEY, profileId);
 
@@ -539,6 +693,9 @@ async function switchProfile(profileId) {
     recipes = applyStoredRecipeOverrides(rawRecipes);
     planData = { targetKcal: 2100, defaultPlan: { "1": [], "2": [], "3": [], "4": [] } };
   }
+
+  const userRecipes = await loadUserRecipesRemote(currentProfile);
+  recipes = mergeRecipesWithUserEntries(recipes, userRecipes);
 
   recipes = addCategoriesFromPlan(recipes, planData.defaultPlan || {});
   recipesById = Object.fromEntries(recipes.map((r) => [r.id, r]));
@@ -1491,6 +1648,7 @@ function applyPendingRecipePatchToRecipe() {
   const updated = mergeRecipeFromStored(base, nextStore);
   recipes = recipes.map((r) => (r.id === id ? updated : r));
   recipesById[id] = updated;
+  upsertUserRecipeRemote(updated);
 
   pendingRecipePatch = null;
   renderPendingRecipePatch();
@@ -1499,6 +1657,57 @@ function applyPendingRecipePatchToRecipe() {
   renderPlanner();
   renderPlanTables();
   alert("Zaktualizowano przepis w aplikacji (zapis lokalny dla tego profilu).");
+}
+
+function nextRecipeId() {
+  const maxLocal = recipes.reduce((max, r) => {
+    const n = Number(String(r.id || "").replace(/^R/i, ""));
+    return Number.isFinite(n) ? Math.max(max, n) : max;
+  }, 0);
+  return `R${maxLocal + 1}`;
+}
+
+async function addRecipeFromForm() {
+  const title = ui.newRecipeTitle.value.trim();
+  const kcal = Number(ui.newRecipeKcal.value);
+  const ingredients = ui.newRecipeIngredients.value.split("\n").map((s) => s.trim()).filter(Boolean);
+  const steps = ui.newRecipeSteps.value.split("\n").map((s) => s.trim()).filter(Boolean);
+  const categories = ui.newRecipeCategories.value
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (!title || !kcal || !ingredients.length || !steps.length) {
+    alert("Podaj nazwę, kcal, składniki i kroki.");
+    return;
+  }
+  if (!currentProfile) {
+    alert("Najpierw utwórz profil.");
+    return;
+  }
+
+  const recipe = {
+    id: nextRecipeId(),
+    title,
+    kcal,
+    ingredients,
+    steps,
+    categories
+  };
+  recipes.push(recipe);
+  recipesById[recipe.id] = recipe;
+  await upsertUserRecipeRemote(recipe);
+
+  ui.newRecipeTitle.value = "";
+  ui.newRecipeKcal.value = "";
+  ui.newRecipeIngredients.value = "";
+  ui.newRecipeSteps.value = "";
+  ui.newRecipeCategories.value = "";
+
+  renderRecipes();
+  renderPlanner();
+  renderPlanTables();
+  refreshConsultRecipeOptions();
 }
 
 function planRecipeCell(id) {
