@@ -135,6 +135,7 @@ const ui = {
   consultResponse: document.getElementById("consultResponse"),
   consultRecipeContext: document.getElementById("consultRecipeContext"),
   consultRecipePatch: document.getElementById("consultRecipePatch"),
+  consultPatchHint: document.getElementById("consultPatchHint"),
 
   themeSelect: document.getElementById("themeSelect"),
   targetKcalInput: document.getElementById("targetKcalInput"),
@@ -560,6 +561,7 @@ function bindEvents() {
     renderPendingRecipePatch();
   });
   ui.consultRecipeSearch.addEventListener("input", refreshConsultRecipeOptions);
+  ui.consultForceRecipePatch?.addEventListener("change", renderConsultPatchHint);
 
   document.addEventListener("click", (event) => {
     const link = event.target.closest('a[href^="#recipe-"]');
@@ -714,8 +716,10 @@ async function switchProfile(profileId) {
   pendingRecipePatch = null;
   setConsultResponseText("");
   ui.consultRecipePatch.innerHTML = "";
+  ui.consultRecipePatch.setAttribute("hidden", "");
   refreshConsultRecipeOptions();
   renderConsultRecipeContext();
+  renderConsultPatchHint();
 
   renderPlanner();
   renderPlanTables();
@@ -1496,6 +1500,18 @@ function setConsultResponseText(value) {
   }
 }
 
+function renderConsultPatchHint() {
+  const el = ui.consultPatchHint;
+  if (!el) return;
+  if (!ui.consultForceRecipePatch?.checked) {
+    el.textContent = "";
+    el.setAttribute("hidden", "");
+    return;
+  }
+  el.textContent = "Po wysłaniu asystent zwróci gotową propozycję zmian w tym przepisie. Potem możesz kliknąć \"Zastosuj w przepisie\".";
+  el.removeAttribute("hidden");
+}
+
 function renderConsultRecipeContext() {
   const r = recipesById[ui.consultTargetRecipe.value];
   if (!r) {
@@ -1611,6 +1627,7 @@ async function askDietAssistantWithMessage(message, options = {}) {
 function renderPendingRecipePatch() {
   if (!pendingRecipePatch) {
     ui.consultRecipePatch.innerHTML = "";
+    ui.consultRecipePatch.setAttribute("hidden", "");
     return;
   }
   const { title, kcal, ingredients, steps, reason, recipeId } = pendingRecipePatch;
@@ -1626,6 +1643,7 @@ function renderPendingRecipePatch() {
   }
   html += `<p><button type="button" id="applyRecipePatchBtn" class="btn">Zastosuj w przepisie</button></p></div>`;
   ui.consultRecipePatch.innerHTML = html;
+  ui.consultRecipePatch.removeAttribute("hidden");
   document.getElementById("applyRecipePatchBtn")?.addEventListener("click", applyPendingRecipePatchToRecipe);
 }
 
