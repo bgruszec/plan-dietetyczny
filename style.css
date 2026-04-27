@@ -343,6 +343,21 @@ textarea {
   margin: 0;
   accent-color: var(--accent);
 }
+.extra-meal-list {
+  display: grid;
+  gap: 8px;
+}
+.extra-meal-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.extra-meal-item button {
+  min-height: 30px;
+  padding: 4px 8px;
+}
 .slot-actions {
   margin-top: 10px;
   display: flex;

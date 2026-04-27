@@ -194,8 +194,10 @@ const ui = {
   photoMealSlot: document.getElementById("photoMealSlot"),
   photoMealImage: document.getElementById("photoMealImage"),
   photoMealNote: document.getElementById("photoMealNote"),
+  photoMealName: document.getElementById("photoMealName"),
   photoMealCameraBtn: document.getElementById("photoMealCameraBtn"),
   photoMealAnalyzeBtn: document.getElementById("photoMealAnalyzeBtn"),
+  photoMealAddToDayBtn: document.getElementById("photoMealAddToDayBtn"),
   photoMealResult: document.getElementById("photoMealResult"),
   photoMealHistory: document.getElementById("photoMealHistory"),
   onboardingBackdrop: document.getElementById("onboardingBackdrop"),
@@ -214,6 +216,7 @@ let supabase = null;
 let authUser = null;
 let runtimeConfig = {};
 let photoMealCapturedDataUrl = "";
+let pendingPhotoMealEstimate = null;
 
 init();
 
@@ -719,6 +722,7 @@ function bindEvents() {
   ui.importBackupInput?.addEventListener("change", importBackupFromFile);
   ui.photoMealCameraBtn?.addEventListener("click", capturePhotoMealWithCamera);
   ui.photoMealAnalyzeBtn?.addEventListener("click", analyzePhotoMeal);
+  ui.photoMealAddToDayBtn?.addEventListener("click", addPhotoMealToSelectedDayAsEaten);
   ui.photoMealImage?.addEventListener("change", () => {
     // Prefer explicit file selection when user changes picker input.
     photoMealCapturedDataUrl = "";
@@ -952,6 +956,9 @@ function mealChecksKey() {
 function photoMealsKey() {
   return `${APP_KEY}:${currentProfile}:photo-meals`;
 }
+function extraMealsKey() {
+  return `${APP_KEY}:${currentProfile}:extra-meals`;
+}
 
 function getPlannerState() {
   try {
@@ -998,6 +1005,18 @@ function getPhotoMealsState() {
 
 function setPhotoMealsState(items) {
   localStorage.setItem(photoMealsKey(), JSON.stringify(items || []));
+}
+
+function getExtraMealsState() {
+  try {
+    return JSON.parse(localStorage.getItem(extraMealsKey()) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function setExtraMealsState(data) {
+  localStorage.setItem(extraMealsKey(), JSON.stringify(data || {}));
 }
 
 function formatPhotoSlot(slotId) {
@@ -1156,6 +1175,7 @@ async function disableMealReminders() {
 function renderPlanner() {
   const state = getPlannerState();
   const checks = getMealChecksState();
+  const extraMeals = getExtraMealsState();
   const dayKey = `${selectedWeek}-${selectedDay}`;
 
   if (!state[dayKey]) {
@@ -1224,11 +1244,58 @@ function renderPlanner() {
     });
   });
 
-  const dayKcal = slotConfig.reduce((sum, slot) => sum + (recipesById[selected[slot.id]]?.kcal || 0), 0);
+  const extraForDay = Array.isArray(extraMeals[dayKey]) ? extraMeals[dayKey] : [];
+  const extraHtml = extraForDay.length
+    ? `
+      <div class="slot-card">
+        <p class="slot-title">Spoza planu (dodane)</p>
+        <div class="extra-meal-list">
+          ${extraForDay.map((item) => `
+            <label class="extra-meal-item">
+              <input type="checkbox" data-extra-eaten-id="${escapeHtml(String(item.id))}" ${item.eaten !== false ? "checked" : ""} />
+              <span>${escapeHtml(item.name || "Posiłek spoza planu")} (${escapeHtml(String(item.kcal || 0))} kcal)</span>
+              <button type="button" data-extra-remove-id="${escapeHtml(String(item.id))}">Usuń</button>
+            </label>
+          `).join("")}
+        </div>
+      </div>
+    `
+    : "";
+  ui.slotWrap.insertAdjacentHTML("beforeend", extraHtml);
+
+  ui.slotWrap.querySelectorAll("input[data-extra-eaten-id]").forEach((el) => {
+    el.addEventListener("change", () => {
+      const id = String(el.dataset.extraEatenId || "");
+      const next = getExtraMealsState();
+      const dayItems = Array.isArray(next[dayKey]) ? next[dayKey] : [];
+      const idx = dayItems.findIndex((x) => String(x.id) === id);
+      if (idx === -1) return;
+      dayItems[idx] = { ...dayItems[idx], eaten: el.checked };
+      next[dayKey] = dayItems;
+      setExtraMealsState(next);
+      renderPlanner();
+    });
+  });
+  ui.slotWrap.querySelectorAll("button[data-extra-remove-id]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const id = String(el.dataset.extraRemoveId || "");
+      const next = getExtraMealsState();
+      const dayItems = Array.isArray(next[dayKey]) ? next[dayKey] : [];
+      next[dayKey] = dayItems.filter((x) => String(x.id) !== id);
+      setExtraMealsState(next);
+      renderPlanner();
+    });
+  });
+
+  const baseKcal = slotConfig.reduce((sum, slot) => sum + (recipesById[selected[slot.id]]?.kcal || 0), 0);
+  const extraKcal = extraForDay
+    .filter((x) => x.eaten !== false)
+    .reduce((sum, x) => sum + (Number(x.kcal) || 0), 0);
+  const dayKcal = baseKcal + extraKcal;
   const diff = dayKcal - getTargetKcal();
   const completion = dayCompletionForEntry(selected, checks[dayKey] || {});
 
-  ui.dayKcal.textContent = `Suma dnia: ${dayKcal} kcal`;
+  ui.dayKcal.textContent = `Suma dnia: ${dayKcal} kcal${extraKcal ? ` (w tym spoza planu: +${extraKcal})` : ""}`;
   ui.kcalDiff.textContent = diff === 0 ? "Idealnie pod cel." : diff > 0 ? `+${diff} kcal` : `${diff} kcal`;
   if (ui.dayCompletion) ui.dayCompletion.textContent = `Realizacja dnia: ${completion.done}/${completion.total}`;
 }
@@ -2203,7 +2270,7 @@ function renderPhotoMealHistory() {
   ui.photoMealHistory.innerHTML = items.map((item) => `
     <article class="recipe-card photo-meal-item">
       <div class="photo-meal-head">
-        <strong>${escapeHtml(item.date || "-")} | ${escapeHtml(formatPhotoSlot(item.slotId))}</strong>
+        <strong>${escapeHtml(item.date || "-")} | ${escapeHtml(item.name || formatPhotoSlot(item.slotId))}</strong>
         <span>${escapeHtml(String(item.estimatedKcal || 0))} kcal</span>
       </div>
       ${item.imageDataUrl ? `<img src="${item.imageDataUrl}" alt="Zdjęcie posiłku" class="photo-meal-thumb" />` : ""}
@@ -2251,6 +2318,7 @@ async function analyzePhotoMeal() {
       id: `local-${Date.now()}`,
       date,
       slotId,
+      name: String(ui.photoMealName?.value?.trim() || data.mealName || ""),
       note,
       imageDataUrl,
       estimatedKcal: Number(data.estimatedKcal) || 0,
@@ -2275,10 +2343,13 @@ async function analyzePhotoMeal() {
 
     setPhotoMealResultHtml(`
       <p><strong>Szacowana kaloryczność:</strong> ${escapeHtml(String(entry.estimatedKcal))} kcal</p>
+      <p><strong>Nazwa:</strong> ${escapeHtml(entry.name || "Posiłek spoza planu")}</p>
       <p class="settings-note">B: ${entry.proteinG ?? "-"} g | T: ${entry.fatG ?? "-"} g | W: ${entry.carbsG ?? "-"} g | Pewność: ${entry.confidence != null ? `${Math.round(entry.confidence * 100)}%` : "-"}</p>
       ${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}
       ${entry.imageDataUrl ? `<img src="${entry.imageDataUrl}" alt="Zdjęcie do analizy" class="photo-meal-thumb" />` : ""}
     `);
+    if (ui.photoMealName) ui.photoMealName.value = entry.name || "";
+    pendingPhotoMealEstimate = entry;
     if (ui.photoMealImage) ui.photoMealImage.value = "";
     photoMealCapturedDataUrl = "";
   } catch (err) {
@@ -2286,6 +2357,33 @@ async function analyzePhotoMeal() {
   } finally {
     ui.photoMealAnalyzeBtn.disabled = false;
   }
+}
+
+function addPhotoMealToSelectedDayAsEaten() {
+  const source = pendingPhotoMealEstimate;
+  if (!source) {
+    alert("Najpierw przeanalizuj zdjęcie, aby dodać wpis do dnia.");
+    return;
+  }
+  const dayKey = `${selectedWeek}-${selectedDay}`;
+  const next = getExtraMealsState();
+  const list = Array.isArray(next[dayKey]) ? next[dayKey] : [];
+  const name = String(ui.photoMealName?.value?.trim() || source.name || "Posiłek spoza planu");
+  const entry = {
+    id: `extra-${Date.now()}`,
+    name,
+    kcal: Number(source.estimatedKcal) || 0,
+    eaten: true,
+    slotId: source.slotId || "",
+    date: source.date || new Date().toISOString().slice(0, 10),
+    source: "photo"
+  };
+  list.push(entry);
+  next[dayKey] = list;
+  setExtraMealsState(next);
+  renderPlanner();
+  renderPlanTables();
+  alert("Dodano do aktualnie wybranego dnia jako zjedzony posiłek spoza planu.");
 }
 
 async function capturePhotoMealWithCamera() {

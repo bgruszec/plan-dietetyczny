@@ -49,9 +49,10 @@ export async function runMealPhotoEstimate(req, res) {
   const prompt = [
     "Oceń kalorykę posiłku ze zdjęcia. Odpowiedz WYŁĄCZNIE JSON-em.",
     "Format:",
-    '{"estimatedKcal":650,"proteinG":35,"fatG":20,"carbsG":70,"confidence":0.72,"summary":"krótki opis"}',
+    '{"mealName":"Nazwa posiłku","estimatedKcal":650,"proteinG":35,"fatG":20,"carbsG":70,"confidence":0.72,"summary":"krótki opis"}',
     "Zasady:",
     "- estimatedKcal: liczba całkowita (100-2500)",
+    "- mealName: krótka nazwa dania po polsku",
     "- proteinG/fatG/carbsG: liczby (>=0)",
     "- confidence: 0-1",
     "- summary: 1-2 krótkie zdania po polsku",
@@ -134,7 +135,8 @@ function normalizeEstimate(obj) {
   const carbsG = clampNumber(obj.carbsG, 0, 400);
   const confidence = clampNumber(obj.confidence, 0, 1);
   const summary = String(obj.summary || "").trim().slice(0, 500);
-  return { estimatedKcal, proteinG, fatG, carbsG, confidence, summary };
+  const mealName = String(obj.mealName || "").trim().slice(0, 120);
+  return { mealName, estimatedKcal, proteinG, fatG, carbsG, confidence, summary };
 }
 
 function clampNumber(v, min, max) {
