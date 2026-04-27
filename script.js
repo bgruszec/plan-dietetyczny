@@ -141,6 +141,7 @@ const ui = {
   targetKcalInput: document.getElementById("targetKcalInput"),
   saveSettingsBtn: document.getElementById("saveSettingsBtn"),
   resetPlannerBtn: document.getElementById("resetPlannerBtn"),
+  syncLunchesBtn: document.getElementById("syncLunchesBtn"),
   saveAsNewPlanBtn: document.getElementById("saveAsNewPlanBtn"),
   newProfileName: document.getElementById("newProfileName"),
   createProfileBtn: document.getElementById("createProfileBtn"),
@@ -547,6 +548,7 @@ function bindEvents() {
   ui.autoPlanBtn.addEventListener("click", autoFillFullPlan);
   ui.saveSettingsBtn.addEventListener("click", saveSettings);
   ui.resetPlannerBtn.addEventListener("click", resetPlannerForCurrentProfile);
+  ui.syncLunchesBtn?.addEventListener("click", syncLunchesBetweenProfiles);
   ui.createProfileBtn.addEventListener("click", createProfileFromInput);
   ui.saveAsNewPlanBtn.addEventListener("click", saveAsNewPlan);
   ui.addRecipeBtn.addEventListener("click", addRecipeFromForm);
@@ -759,6 +761,9 @@ function addCategoriesFromPlan(list, defaultPlan) {
 function plannerKey() {
   return `${APP_KEY}:${currentProfile}:planner`;
 }
+function plannerKeyForProfile(profileId) {
+  return `${APP_KEY}:${profileId}:planner`;
+}
 function metricsKey() {
   return `${APP_KEY}:${currentProfile}:metrics`;
 }
@@ -775,6 +780,72 @@ function getPlannerState() {
 }
 function setPlannerState(data) {
   localStorage.setItem(plannerKey(), JSON.stringify(data));
+}
+
+function getPlannerStateForProfile(profileId) {
+  try {
+    return JSON.parse(localStorage.getItem(plannerKeyForProfile(profileId)) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function setPlannerStateForProfile(profileId, data) {
+  localStorage.setItem(plannerKeyForProfile(profileId), JSON.stringify(data));
+}
+
+async function loadDefaultPlanForProfile(profileId) {
+  try {
+    const res = await fetch(`plans/${profileId}/plan.json`);
+    if (!res.ok) throw new Error("Brak planu");
+    return await res.json();
+  } catch {
+    return { targetKcal: 2100, defaultPlan: { "1": [], "2": [], "3": [], "4": [] } };
+  }
+}
+
+async function syncLunchesBetweenProfiles() {
+  if (!["bartek", "paulina"].includes(currentProfile)) {
+    alert("Synchronizacja działa tylko dla profili Bartek i Paulina.");
+    return;
+  }
+  const source = currentProfile;
+  const target = source === "bartek" ? "paulina" : "bartek";
+  if (!confirm(`Skopiować obiady (meal2) z profilu ${source} do profilu ${target} dla wszystkich 28 dni?`)) return;
+
+  const [sourcePlan, targetPlan] = await Promise.all([
+    loadDefaultPlanForProfile(source),
+    loadDefaultPlanForProfile(target)
+  ]);
+  const sourceState = getPlannerStateForProfile(source);
+  const targetState = getPlannerStateForProfile(target);
+  const writes = [];
+
+  for (let week = 1; week <= 4; week++) {
+    for (let day = 1; day <= 7; day++) {
+      const key = `${week}-${day}`;
+      const sourceBase = sourcePlan.defaultPlan?.[String(week)]?.[day - 1] || {};
+      const targetBase = targetPlan.defaultPlan?.[String(week)]?.[day - 1] || {};
+      const sourceLocal = sourceState[key] || {};
+      const targetLocal = targetState[key] || {};
+      const next = {
+        meal1: targetLocal.meal1 ?? targetBase.meal1 ?? "",
+        meal2: sourceLocal.meal2 ?? sourceBase.meal2 ?? "",
+        meal3: targetLocal.meal3 ?? targetBase.meal3 ?? "",
+        snack: targetLocal.snack ?? targetBase.snack ?? ""
+      };
+      targetState[key] = next;
+      if (supabase && authUser) writes.push(savePlannerEntryRemote(week, day, next, target));
+    }
+  }
+
+  setPlannerStateForProfile(target, targetState);
+  if (writes.length) await Promise.all(writes);
+  if (currentProfile === target) {
+    renderPlanner();
+    renderPlanTables();
+  }
+  alert(`Zsynchronizowano obiady z ${source} -> ${target}.`);
 }
 
 function renderPlanner() {
