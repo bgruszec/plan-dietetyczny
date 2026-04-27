@@ -306,6 +306,24 @@ textarea {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+.plan-meal-entry {
+  display: grid;
+  gap: 4px;
+}
+.plan-eaten-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.plan-eaten-toggle input[type="checkbox"] {
+  min-height: 16px;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
 .slot-actions {
   margin-top: 10px;
   display: flex;

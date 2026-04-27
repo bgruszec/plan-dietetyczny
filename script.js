@@ -1226,7 +1226,12 @@ function renderPlanTables() {
               <tr class="plan-row">
                 <th scope="row" class="plan-day-cell" data-label="Dzień">${weekdayNames[idx] || `Dzień ${row.day}`}</th>
                 ${slotConfig.map((slot) => `
-                  <td class="plan-meal-cell" data-label="${slot.label}">${planRecipeCell(row[slot.id])}</td>
+                  <td class="plan-meal-cell" data-label="${slot.label}">${planRecipeCell(row[slot.id], {
+                    week: w,
+                    day: row.day,
+                    slotId: slot.id,
+                    checked: Boolean(checks[`${w}-${row.day}`]?.[slot.id])
+                  })}</td>
                 `).join("")}
                 <td class="plan-status-cell" data-label="Status">${(() => {
                   const key = `${w}-${row.day}`;
@@ -1241,6 +1246,25 @@ function renderPlanTables() {
       </div>
     `;
   }).join("");
+
+  ui.planTables.querySelectorAll('input[data-plan-eaten]').forEach((el) => {
+    el.addEventListener("change", async () => {
+      const week = Number(el.dataset.week);
+      const day = Number(el.dataset.day);
+      const slotId = String(el.dataset.slotId || "");
+      if (!Number.isInteger(week) || !Number.isInteger(day) || !slotId) return;
+      const key = `${week}-${day}`;
+      const checks = getMealChecksState();
+      if (!checks[key]) checks[key] = {};
+      checks[key][slotId] = el.checked;
+      setMealChecksState(checks);
+      if (supabase && authUser) {
+        await saveSettingsRemote(Number(loadProfileSettings().targetKcal || getTargetKcal()), currentProfile);
+      }
+      renderPlanTables();
+      if (selectedWeek === week && selectedDay === day) renderPlanner();
+    });
+  });
 }
 
 function getPlannedDayEntry(week, day) {
@@ -2045,10 +2069,25 @@ async function addRecipeFromForm() {
   refreshConsultRecipeOptions();
 }
 
-function planRecipeCell(id) {
+function planRecipeCell(id, options = {}) {
   const r = recipesById[id];
   if (!r) return id || "-";
-  return `<a href="#recipe-${r.id}">${escapeHtml(r.title)}</a>`;
+  const week = Number(options.week);
+  const day = Number(options.day);
+  const slotId = String(options.slotId || "");
+  const checked = Boolean(options.checked);
+  if (!Number.isInteger(week) || !Number.isInteger(day) || !slotId) {
+    return `<a href="#recipe-${r.id}">${escapeHtml(r.title)}</a>`;
+  }
+  return `
+    <div class="plan-meal-entry">
+      <a href="#recipe-${r.id}">${escapeHtml(r.title)}</a>
+      <label class="plan-eaten-toggle">
+        <input type="checkbox" data-plan-eaten="1" data-week="${week}" data-day="${day}" data-slot-id="${slotId}" ${checked ? "checked" : ""} />
+        zjedzone
+      </label>
+    </div>
+  `;
 }
 
 function renderRecipes() {
