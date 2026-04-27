@@ -3,12 +3,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const APP_KEY = "diet-app-v3";
 const ACTIVE_PROFILE_KEY = "diet-active-profile";
 const THEME_KEY = "diet-theme";
+const ONBOARDING_KEY = "diet-onboarding-v1";
 const MEAL_REMINDER_IDS = { meal1: 7101, meal2: 7102, meal3: 7103, snack: 7104 };
 const DEFAULT_REMINDER_TIMES = {
   meal1: "08:00",
   meal2: "13:00",
   snack: "16:30",
   meal3: "19:00"
+};
+const REMINDER_PRESETS = {
+  early: { meal1: "06:30", meal2: "11:30", snack: "15:30", meal3: "18:30" },
+  standard: { meal1: "08:00", meal2: "13:00", snack: "16:30", meal3: "19:00" },
+  late: { meal1: "09:30", meal2: "14:30", snack: "18:00", meal3: "21:00" }
 };
 
 const slotConfig = [
@@ -111,6 +117,7 @@ const ui = {
   slotWrap: document.getElementById("slotWrap"),
   dayKcal: document.getElementById("dayKcal"),
   kcalDiff: document.getElementById("kcalDiff"),
+  dayCompletion: document.getElementById("dayCompletion"),
   recipeSearch: document.getElementById("recipeSearch"),
   recipeCategoryFilter: document.getElementById("recipeCategoryFilter"),
   recipesList: document.getElementById("recipesList"),
@@ -150,12 +157,16 @@ const ui = {
   saveSettingsBtn: document.getElementById("saveSettingsBtn"),
   resetPlannerBtn: document.getElementById("resetPlannerBtn"),
   syncLunchesBtn: document.getElementById("syncLunchesBtn"),
+  reminderPreset: document.getElementById("reminderPreset"),
   reminderMeal1Time: document.getElementById("reminderMeal1Time"),
   reminderMeal2Time: document.getElementById("reminderMeal2Time"),
   reminderSnackTime: document.getElementById("reminderSnackTime"),
   reminderMeal3Time: document.getElementById("reminderMeal3Time"),
   enableMealRemindersBtn: document.getElementById("enableMealRemindersBtn"),
   disableMealRemindersBtn: document.getElementById("disableMealRemindersBtn"),
+  exportBackupBtn: document.getElementById("exportBackupBtn"),
+  importBackupBtn: document.getElementById("importBackupBtn"),
+  importBackupInput: document.getElementById("importBackupInput"),
   saveAsNewPlanBtn: document.getElementById("saveAsNewPlanBtn"),
   newProfileName: document.getElementById("newProfileName"),
   createProfileBtn: document.getElementById("createProfileBtn"),
@@ -177,7 +188,9 @@ const ui = {
   topbarTrail: document.getElementById("topbarTrail"),
   authChip: document.getElementById("authChip"),
   consultTargetRecipe: document.getElementById("consultTargetRecipe"),
-  consultRecipeSearch: document.getElementById("consultRecipeSearch")
+  consultRecipeSearch: document.getElementById("consultRecipeSearch"),
+  onboardingBackdrop: document.getElementById("onboardingBackdrop"),
+  onboardingCloseBtn: document.getElementById("onboardingCloseBtn")
 };
 
 let profiles = [];
@@ -202,6 +215,7 @@ async function init() {
   bindEvents();
   initShoppingSelectors();
   await restoreSessionAndBootstrap();
+  renderOnboardingIfNeeded();
 }
 
 async function initSupabase() {
@@ -629,6 +643,12 @@ function bindEvents() {
   ui.syncLunchesBtn?.addEventListener("click", syncLunchesBetweenProfiles);
   ui.enableMealRemindersBtn?.addEventListener("click", enableMealReminders);
   ui.disableMealRemindersBtn?.addEventListener("click", disableMealReminders);
+  ui.reminderPreset?.addEventListener("change", () => {
+    applyReminderPreset(ui.reminderPreset.value);
+  });
+  ui.exportBackupBtn?.addEventListener("click", exportBackupToFile);
+  ui.importBackupBtn?.addEventListener("click", () => ui.importBackupInput?.click());
+  ui.importBackupInput?.addEventListener("change", importBackupFromFile);
   ui.createProfileBtn.addEventListener("click", createProfileFromInput);
   ui.saveAsNewPlanBtn.addEventListener("click", saveAsNewPlan);
   ui.addRecipeBtn.addEventListener("click", addRecipeFromForm);
@@ -644,6 +664,7 @@ function bindEvents() {
   });
   ui.consultRecipeSearch.addEventListener("input", refreshConsultRecipeOptions);
   ui.consultForceRecipePatch?.addEventListener("change", renderConsultPatchHint);
+  ui.onboardingCloseBtn?.addEventListener("click", closeOnboarding);
 
   document.addEventListener("click", (event) => {
     const link = event.target.closest('a[href^="#recipe-"]');
@@ -907,6 +928,34 @@ function getReminderTimesFromUi() {
   });
 }
 
+function reminderPresetFromTimes(times) {
+  const t = normalizeReminderTimes(times);
+  for (const [preset, values] of Object.entries(REMINDER_PRESETS)) {
+    const v = normalizeReminderTimes(values);
+    if (v.meal1 === t.meal1 && v.meal2 === t.meal2 && v.snack === t.snack && v.meal3 === t.meal3) {
+      return preset;
+    }
+  }
+  return "custom";
+}
+
+function applyReminderPreset(preset) {
+  if (!preset || preset === "custom") return;
+  const values = REMINDER_PRESETS[preset];
+  if (!values) return;
+  if (ui.reminderMeal1Time) ui.reminderMeal1Time.value = values.meal1;
+  if (ui.reminderMeal2Time) ui.reminderMeal2Time.value = values.meal2;
+  if (ui.reminderSnackTime) ui.reminderSnackTime.value = values.snack;
+  if (ui.reminderMeal3Time) ui.reminderMeal3Time.value = values.meal3;
+}
+
+function dayCompletionForEntry(entry, checks) {
+  const planned = slotConfig.filter((slot) => String(entry?.[slot.id] || "").trim());
+  const total = planned.length;
+  const done = planned.filter((slot) => Boolean(checks?.[slot.id])).length;
+  return { done, total };
+}
+
 async function loadDefaultPlanForProfile(profileId) {
   try {
     const res = await fetch(`plans/${profileId}/plan.json`);
@@ -1081,9 +1130,11 @@ function renderPlanner() {
 
   const dayKcal = slotConfig.reduce((sum, slot) => sum + (recipesById[selected[slot.id]]?.kcal || 0), 0);
   const diff = dayKcal - getTargetKcal();
+  const completion = dayCompletionForEntry(selected, checks[dayKey] || {});
 
   ui.dayKcal.textContent = `Suma dnia: ${dayKcal} kcal`;
   ui.kcalDiff.textContent = diff === 0 ? "Idealnie pod cel." : diff > 0 ? `+${diff} kcal` : `${diff} kcal`;
+  if (ui.dayCompletion) ui.dayCompletion.textContent = `Realizacja dnia: ${completion.done}/${completion.total}`;
 }
 
 async function copySelectedDayPlan() {
@@ -1135,6 +1186,7 @@ function renderPlanTables() {
   const weeks = filter === "all" ? [1, 2, 3, 4] : [Number(filter)];
   const dp = planData.defaultPlan || {};
   const plannerState = getPlannerState();
+  const checks = getMealChecksState();
 
   ui.planTables.innerHTML = weeks.map((w) => {
     const rows = Array.from({ length: 7 }, (_, idx) => {
@@ -1165,6 +1217,7 @@ function renderPlanTables() {
             <tr>
               <th>Dzień</th>
               ${slotConfig.map((s) => `<th>${s.label}</th>`).join("")}
+              <th>Status</th>
               <th>Suma kcal</th>
             </tr>
           </thead>
@@ -1175,6 +1228,11 @@ function renderPlanTables() {
                 ${slotConfig.map((slot) => `
                   <td class="plan-meal-cell" data-label="${slot.label}">${planRecipeCell(row[slot.id])}</td>
                 `).join("")}
+                <td class="plan-status-cell" data-label="Status">${(() => {
+                  const key = `${w}-${row.day}`;
+                  const c = dayCompletionForEntry(row, checks[key] || {});
+                  return c.total ? `${c.done}/${c.total}` : "-";
+                })()}</td>
                 <td class="plan-sum-cell" data-label="Suma kcal">${totalForRow(row) || "-"}</td>
               </tr>
             `).join("")}
@@ -2463,6 +2521,7 @@ function fillSettingsFromState() {
   if (ui.reminderMeal2Time) ui.reminderMeal2Time.value = reminders.meal2;
   if (ui.reminderSnackTime) ui.reminderSnackTime.value = reminders.snack;
   if (ui.reminderMeal3Time) ui.reminderMeal3Time.value = reminders.meal3;
+  if (ui.reminderPreset) ui.reminderPreset.value = reminderPresetFromTimes(reminders);
   ui.themeSelect.value = document.body.dataset.theme || "dark";
 }
 
@@ -2486,6 +2545,72 @@ async function saveSettings() {
   renderPlanner();
   renderPlanTables();
   alert("Ustawienia zapisane.");
+}
+
+function exportBackupToFile() {
+  const snapshot = {};
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k) continue;
+    if (k.startsWith(`${APP_KEY}:`) || k === ACTIVE_PROFILE_KEY || k === THEME_KEY) keys.push(k);
+  }
+  keys.sort().forEach((k) => { snapshot[k] = localStorage.getItem(k); });
+  const payload = {
+    app: APP_KEY,
+    exportedAt: new Date().toISOString(),
+    currentProfile,
+    data: snapshot
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `diet-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function importBackupFromFile(event) {
+  const file = event.target?.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if (!parsed?.data || typeof parsed.data !== "object") throw new Error("Nieprawidłowy format pliku.");
+    for (const [k, v] of Object.entries(parsed.data)) {
+      if (typeof v === "string") localStorage.setItem(k, v);
+    }
+    if (parsed.currentProfile) localStorage.setItem(ACTIVE_PROFILE_KEY, String(parsed.currentProfile));
+    currentProfile = localStorage.getItem(ACTIVE_PROFILE_KEY) || currentProfile;
+    await loadProfiles();
+    if (currentProfile) {
+      await switchProfile(currentProfile);
+      await pullRemoteState();
+    }
+    alert("Przywrócono dane z kopii zapasowej.");
+  } catch (err) {
+    alert(`Nie udało się zaimportować kopii: ${err.message || err}`);
+  } finally {
+    if (ui.importBackupInput) ui.importBackupInput.value = "";
+  }
+}
+
+function renderOnboardingIfNeeded() {
+  if (!ui.onboardingBackdrop) return;
+  const shown = localStorage.getItem(ONBOARDING_KEY) === "1";
+  if (shown) {
+    ui.onboardingBackdrop.classList.add("hidden");
+    return;
+  }
+  ui.onboardingBackdrop.classList.remove("hidden");
+}
+
+function closeOnboarding() {
+  localStorage.setItem(ONBOARDING_KEY, "1");
+  ui.onboardingBackdrop?.classList.add("hidden");
 }
 
 function resetPlannerForCurrentProfile() {

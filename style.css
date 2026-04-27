@@ -382,6 +382,33 @@ textarea {
 .reminder-grid {
   margin-top: 10px;
 }
+.onboarding-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 10, 24, 0.58);
+  display: grid;
+  place-items: center;
+  z-index: 120;
+  padding: 16px;
+}
+.onboarding-card {
+  width: min(520px, 96vw);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+.onboarding-card h3 {
+  margin: 0 0 8px;
+}
+.onboarding-card ol {
+  margin: 8px 0 14px 18px;
+  color: var(--muted);
+}
+.onboarding-card .btn {
+  width: 100%;
+}
 
 .metrics-progress {
   margin-top: 16px;
@@ -510,28 +537,30 @@ body[data-theme="light"] .metrics-bmi-marker {
 .metrics-progress-foot { margin-top: 12px !important; }
 
 .consult-option {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  margin: 10px 0 6px;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--muted);
-  max-width: 640px;
-  line-height: 1.4;
-}
-.consult-option-text {
-  display: block;
-  flex: 1;
-  min-width: 0;
+  margin: 10px 0 2px;
 }
 .consult-option input[type="checkbox"] {
-  margin-top: 4px;
+  -webkit-appearance: checkbox;
+  appearance: checkbox;
+  margin: 0;
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  min-height: 18px;
+  min-height: 18px !important;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
   accent-color: var(--accent);
+  vertical-align: middle;
+}
+.consult-option-note {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+#consultPatchHint {
+  margin-top: 0;
 }
 
 .consult-context {
@@ -939,6 +968,9 @@ body[data-theme="light"] a:visited {
   #logoutBtn {
     min-height: 44px;
     padding-inline: 14px;
+  }
+  .onboarding-card {
+    width: 100%;
   }
 }
 
