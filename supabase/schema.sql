@@ -100,6 +100,23 @@ create table if not exists public.user_recipes (
   unique (user_id, profile_id, recipe_id)
 );
 
+create table if not exists public.meal_photo_logs (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  profile_id text not null,
+  date date not null,
+  meal_slot text,
+  note text,
+  image_data_url text,
+  estimated_kcal integer not null,
+  protein_g numeric,
+  fat_g numeric,
+  carbs_g numeric,
+  confidence numeric,
+  model text,
+  created_at timestamptz not null default now()
+);
+
 create or replace function public.current_user_email()
 returns text
 language sql
@@ -130,6 +147,7 @@ alter table public.consult_history enable row level security;
 alter table public.user_profiles enable row level security;
 alter table public.system_profile_access enable row level security;
 alter table public.user_recipes enable row level security;
+alter table public.meal_photo_logs enable row level security;
 
 drop policy if exists "own_profiles" on public.profiles;
 create policy "own_profiles"
@@ -209,6 +227,13 @@ create policy "deny_system_profile_access_read"
 drop policy if exists "own_user_recipes" on public.user_recipes;
 create policy "own_user_recipes"
   on public.user_recipes
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "own_meal_photo_logs" on public.meal_photo_logs;
+create policy "own_meal_photo_logs"
+  on public.meal_photo_logs
   for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

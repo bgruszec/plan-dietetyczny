@@ -61,6 +61,10 @@
         <span class="menu-btn-icon">AI</span>
         <span class="menu-btn-label">Konsultacje</span>
       </button>
+      <button class="menu-btn" data-section="photoMeals" aria-selected="false">
+        <span class="menu-btn-icon">ZD</span>
+        <span class="menu-btn-label">Zdjęcia posiłków</span>
+      </button>
       <button class="menu-btn" data-section="settings" aria-selected="false">
         <span class="menu-btn-icon">US</span>
         <span class="menu-btn-label">Ustawienia</span>
@@ -192,6 +196,37 @@
         </div>
         <div id="consultResponse" class="recipe-card" hidden></div>
         <div id="consultRecipePatch" hidden></div>
+      </section>
+
+      <section class="card app-section" id="section-photoMeals">
+        <h2>Posiłek spoza planu (zdjęcie)</h2>
+        <p class="settings-note">Dodaj zdjęcie, aby oszacować kalorie i zapisać wpis w historii.</p>
+        <div class="grid">
+          <label>Data
+            <input id="photoMealDate" type="date" />
+          </label>
+          <label>Pora posiłku
+            <select id="photoMealSlot">
+              <option value="">Poza planem</option>
+              <option value="meal1">Śniadanie</option>
+              <option value="meal2">Obiad</option>
+              <option value="meal3">Kolacja</option>
+              <option value="snack">Przekąska</option>
+            </select>
+          </label>
+        </div>
+        <label>Zdjęcie posiłku
+          <input id="photoMealImage" type="file" accept="image/*" capture="environment" />
+        </label>
+        <label>Notatka (opcjonalnie)
+          <textarea id="photoMealNote" rows="2" placeholder="Np. porcja około 350 g, makaron z kurczakiem"></textarea>
+        </label>
+        <div class="row">
+          <button id="photoMealAnalyzeBtn" class="btn" type="button">Analizuj zdjęcie</button>
+        </div>
+        <div id="photoMealResult" class="recipe-card" hidden></div>
+        <h3>Historia zdjęć</h3>
+        <div id="photoMealHistory" class="photo-meal-history"></div>
       </section>
 
       <section class="card app-section" id="section-settings">

@@ -272,6 +272,22 @@ textarea {
 .shopping-empty {
   color: var(--muted);
 }
+.photo-meal-history {
+  display: grid;
+  gap: 8px;
+}
+.photo-meal-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+.photo-meal-thumb {
+  width: min(220px, 100%);
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  margin: 6px 0;
+}
 
 .btn {
   background: var(--accent);

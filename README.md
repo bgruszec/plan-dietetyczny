@@ -14,6 +14,7 @@
 - `GEMINI_MODEL` (np. `gemini-pro-latest`)
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
+- `GEMINI_VISION_MODEL` (opcjonalnie, domyślnie `gemini-1.5-flash`)
 
 ## Supabase
 

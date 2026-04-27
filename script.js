@@ -109,6 +109,7 @@ const ui = {
     recipes: document.getElementById("section-recipes"),
     shopping: document.getElementById("section-shopping"),
     consult: document.getElementById("section-consult"),
+    photoMeals: document.getElementById("section-photoMeals"),
     settings: document.getElementById("section-settings")
   },
   weekSelect: document.getElementById("weekSelect"),
@@ -189,6 +190,13 @@ const ui = {
   authChip: document.getElementById("authChip"),
   consultTargetRecipe: document.getElementById("consultTargetRecipe"),
   consultRecipeSearch: document.getElementById("consultRecipeSearch"),
+  photoMealDate: document.getElementById("photoMealDate"),
+  photoMealSlot: document.getElementById("photoMealSlot"),
+  photoMealImage: document.getElementById("photoMealImage"),
+  photoMealNote: document.getElementById("photoMealNote"),
+  photoMealAnalyzeBtn: document.getElementById("photoMealAnalyzeBtn"),
+  photoMealResult: document.getElementById("photoMealResult"),
+  photoMealHistory: document.getElementById("photoMealHistory"),
   onboardingBackdrop: document.getElementById("onboardingBackdrop"),
   onboardingCloseBtn: document.getElementById("onboardingCloseBtn")
 };
@@ -242,6 +250,13 @@ function chatDietEndpoint() {
   if (!rawBase) return "/api/chat-diet";
   const cleanBase = rawBase.replace(/\/+$/, "");
   return `${cleanBase}/api/chat-diet`;
+}
+
+function mealPhotoEndpoint() {
+  const rawBase = String(runtimeConfig?.apiBaseUrl || "").trim();
+  if (!rawBase) return "/api/meal-photo-estimate";
+  const cleanBase = rawBase.replace(/\/+$/, "");
+  return `${cleanBase}/api/meal-photo-estimate`;
 }
 
 async function restoreSessionAndBootstrap() {
@@ -365,9 +380,15 @@ async function pullRemoteState() {
     for (const entry of localMetrics) await saveMetricsRemote(entry);
   }
 
+  const photoLogs = await loadMealPhotoLogsRemote();
+  if (photoLogs?.length) {
+    setPhotoMealsState(photoLogs);
+  }
+
   renderPlanner();
   renderPlanTables();
   renderMetrics();
+  renderPhotoMealHistory();
   fillSettingsFromState();
   applyStickyMetricFormDefaults({ setTodayDate: false });
 }
@@ -550,6 +571,51 @@ async function upsertUserRecipeRemote(recipe, profileId = currentProfile) {
   }, { onConflict: "user_id,profile_id,recipe_id" });
 }
 
+async function loadMealPhotoLogsRemote(profileId = currentProfile) {
+  if (!supabase || !authUser || !profileId) return [];
+  const { data, error } = await supabase
+    .from("meal_photo_logs")
+    .select("id,date,meal_slot,note,image_data_url,estimated_kcal,protein_g,fat_g,carbs_g,confidence,model,created_at")
+    .eq("user_id", authUser.id)
+    .eq("profile_id", profileId)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (error) return [];
+  return (data || []).map((row) => ({
+    id: row.id,
+    date: row.date,
+    slotId: row.meal_slot || "",
+    note: row.note || "",
+    imageDataUrl: row.image_data_url || "",
+    estimatedKcal: Number(row.estimated_kcal) || 0,
+    proteinG: row.protein_g == null ? null : Number(row.protein_g),
+    fatG: row.fat_g == null ? null : Number(row.fat_g),
+    carbsG: row.carbs_g == null ? null : Number(row.carbs_g),
+    confidence: row.confidence == null ? null : Number(row.confidence),
+    model: row.model || "",
+    createdAt: row.created_at || new Date().toISOString()
+  }));
+}
+
+async function insertMealPhotoLogRemote(entry, profileId = currentProfile) {
+  if (!supabase || !authUser || !profileId) return;
+  await supabase.from("meal_photo_logs").insert({
+    user_id: authUser.id,
+    profile_id: profileId,
+    date: entry.date,
+    meal_slot: entry.slotId || null,
+    note: entry.note || null,
+    image_data_url: entry.imageDataUrl || null,
+    estimated_kcal: Number(entry.estimatedKcal) || 0,
+    protein_g: entry.proteinG,
+    fat_g: entry.fatG,
+    carbs_g: entry.carbsG,
+    confidence: entry.confidence,
+    model: entry.model || null,
+    created_at: entry.createdAt || new Date().toISOString()
+  });
+}
+
 function recipeOverridesStorageKey() {
   return `${APP_KEY}-recipe-overrides-${currentProfile}`;
 }
@@ -649,6 +715,7 @@ function bindEvents() {
   ui.exportBackupBtn?.addEventListener("click", exportBackupToFile);
   ui.importBackupBtn?.addEventListener("click", () => ui.importBackupInput?.click());
   ui.importBackupInput?.addEventListener("change", importBackupFromFile);
+  ui.photoMealAnalyzeBtn?.addEventListener("click", analyzePhotoMeal);
   ui.createProfileBtn.addEventListener("click", createProfileFromInput);
   ui.saveAsNewPlanBtn.addEventListener("click", saveAsNewPlan);
   ui.addRecipeBtn.addEventListener("click", addRecipeFromForm);
@@ -828,7 +895,9 @@ async function switchProfile(profileId) {
   renderPlanTables();
   renderRecipes();
   renderMetrics();
+  renderPhotoMealHistory();
   applyStickyMetricFormDefaults({ setTodayDate: true });
+  if (ui.photoMealDate && !ui.photoMealDate.value) ui.photoMealDate.valueAsDate = new Date();
 }
 
 function addCategoriesFromPlan(list, defaultPlan) {
@@ -873,6 +942,9 @@ function settingsKey() {
 function mealChecksKey() {
   return `${APP_KEY}:${currentProfile}:meal-checks`;
 }
+function photoMealsKey() {
+  return `${APP_KEY}:${currentProfile}:photo-meals`;
+}
 
 function getPlannerState() {
   try {
@@ -907,6 +979,23 @@ function getMealChecksState() {
 
 function setMealChecksState(data) {
   localStorage.setItem(mealChecksKey(), JSON.stringify(data));
+}
+
+function getPhotoMealsState() {
+  try {
+    return JSON.parse(localStorage.getItem(photoMealsKey()) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function setPhotoMealsState(items) {
+  localStorage.setItem(photoMealsKey(), JSON.stringify(items || []));
+}
+
+function formatPhotoSlot(slotId) {
+  const slot = slotConfig.find((s) => s.id === slotId);
+  return slot?.label || "Poza planem";
 }
 
 function normalizeReminderTimes(raw) {
@@ -2088,6 +2177,132 @@ function planRecipeCell(id, options = {}) {
       </label>
     </div>
   `;
+}
+
+function setPhotoMealResultHtml(html = "") {
+  if (!ui.photoMealResult) return;
+  ui.photoMealResult.innerHTML = html;
+  if (String(html || "").trim()) ui.photoMealResult.removeAttribute("hidden");
+  else ui.photoMealResult.setAttribute("hidden", "");
+}
+
+function renderPhotoMealHistory() {
+  if (!ui.photoMealHistory) return;
+  const items = getPhotoMealsState();
+  if (!items.length) {
+    ui.photoMealHistory.innerHTML = '<p class="settings-note">Brak zapisanych analiz zdjęć.</p>';
+    return;
+  }
+  ui.photoMealHistory.innerHTML = items.map((item) => `
+    <article class="recipe-card photo-meal-item">
+      <div class="photo-meal-head">
+        <strong>${escapeHtml(item.date || "-")} | ${escapeHtml(formatPhotoSlot(item.slotId))}</strong>
+        <span>${escapeHtml(String(item.estimatedKcal || 0))} kcal</span>
+      </div>
+      ${item.imageDataUrl ? `<img src="${item.imageDataUrl}" alt="Zdjęcie posiłku" class="photo-meal-thumb" />` : ""}
+      ${item.note ? `<p class="settings-note">${escapeHtml(item.note)}</p>` : ""}
+      <p class="settings-note">B: ${item.proteinG ?? "-"} g | T: ${item.fatG ?? "-"} g | W: ${item.carbsG ?? "-"} g | Pewność: ${item.confidence != null ? `${Math.round(item.confidence * 100)}%` : "-"}</p>
+      ${item.summary ? `<p>${escapeHtml(item.summary)}</p>` : ""}
+    </article>
+  `).join("");
+}
+
+async function analyzePhotoMeal() {
+  const file = ui.photoMealImage?.files?.[0];
+  if (!file) {
+    alert("Wybierz zdjęcie posiłku.");
+    return;
+  }
+  const date = ui.photoMealDate?.value || new Date().toISOString().slice(0, 10);
+  const slotId = ui.photoMealSlot?.value || "";
+  const note = ui.photoMealNote?.value?.trim() || "";
+
+  ui.photoMealAnalyzeBtn.disabled = true;
+  setPhotoMealResultHtml("Analizuję zdjęcie...");
+  try {
+    const imageDataUrl = await fileToCompressedDataUrl(file, 1024, 0.78);
+    const headers = { "Content-Type": "application/json" };
+    if (supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    }
+    const response = await fetch(mealPhotoEndpoint(), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ imageDataUrl, note })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `Błąd ${response.status}`);
+
+    const entry = {
+      id: `local-${Date.now()}`,
+      date,
+      slotId,
+      note,
+      imageDataUrl,
+      estimatedKcal: Number(data.estimatedKcal) || 0,
+      proteinG: data.proteinG == null ? null : Number(data.proteinG),
+      fatG: data.fatG == null ? null : Number(data.fatG),
+      carbsG: data.carbsG == null ? null : Number(data.carbsG),
+      confidence: data.confidence == null ? null : Number(data.confidence),
+      summary: String(data.summary || ""),
+      model: String(data.model || ""),
+      createdAt: new Date().toISOString()
+    };
+    const next = [entry, ...getPhotoMealsState()].slice(0, 100);
+    setPhotoMealsState(next);
+    renderPhotoMealHistory();
+    if (supabase && authUser) {
+      try {
+        await insertMealPhotoLogRemote(entry);
+      } catch {
+        // Keep local history even if remote save fails (e.g. schema not migrated yet).
+      }
+    }
+
+    setPhotoMealResultHtml(`
+      <p><strong>Szacowana kaloryczność:</strong> ${escapeHtml(String(entry.estimatedKcal))} kcal</p>
+      <p class="settings-note">B: ${entry.proteinG ?? "-"} g | T: ${entry.fatG ?? "-"} g | W: ${entry.carbsG ?? "-"} g | Pewność: ${entry.confidence != null ? `${Math.round(entry.confidence * 100)}%` : "-"}</p>
+      ${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}
+    `);
+    if (ui.photoMealImage) ui.photoMealImage.value = "";
+  } catch (err) {
+    setPhotoMealResultHtml(escapeHtml(err.message || "Nie udało się przeanalizować zdjęcia."));
+  } finally {
+    ui.photoMealAnalyzeBtn.disabled = false;
+  }
+}
+
+async function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.78) {
+  const dataUrl = await readFileAsDataUrl(file);
+  const img = await loadImage(dataUrl);
+  const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Nie udało się odczytać pliku."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Nie udało się przetworzyć zdjęcia."));
+    img.src = src;
+  });
 }
 
 function renderRecipes() {

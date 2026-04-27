@@ -2,13 +2,14 @@ import express from "express";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { runChatDiet } from "./api/run-chat-diet.js";
+import { runMealPhotoEstimate } from "./api/run-meal-photo-estimate.js";
 
 loadDotEnv();
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
 
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "12mb" }));
 app.use((req, res, next) => {
   if (!req.path.startsWith("/api/")) return next();
   const allowed = process.env.CORS_ALLOW_ORIGIN || "*";
@@ -33,6 +34,7 @@ app.get("/api/runtime-config", (req, res) => {
 });
 
 app.post("/api/chat-diet", (req, res) => runChatDiet(req, res));
+app.post("/api/meal-photo-estimate", (req, res) => runMealPhotoEstimate(req, res));
 
 app.get("*", (req, res) => {
   const indexPath = resolve(process.cwd(), "index.html");
