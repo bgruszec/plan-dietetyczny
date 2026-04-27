@@ -194,6 +194,7 @@ const ui = {
   photoMealSlot: document.getElementById("photoMealSlot"),
   photoMealImage: document.getElementById("photoMealImage"),
   photoMealNote: document.getElementById("photoMealNote"),
+  photoMealCameraBtn: document.getElementById("photoMealCameraBtn"),
   photoMealAnalyzeBtn: document.getElementById("photoMealAnalyzeBtn"),
   photoMealResult: document.getElementById("photoMealResult"),
   photoMealHistory: document.getElementById("photoMealHistory"),
@@ -212,6 +213,7 @@ let pendingRecipePatch = null;
 let supabase = null;
 let authUser = null;
 let runtimeConfig = {};
+let photoMealCapturedDataUrl = "";
 
 init();
 
@@ -715,7 +717,12 @@ function bindEvents() {
   ui.exportBackupBtn?.addEventListener("click", exportBackupToFile);
   ui.importBackupBtn?.addEventListener("click", () => ui.importBackupInput?.click());
   ui.importBackupInput?.addEventListener("change", importBackupFromFile);
+  ui.photoMealCameraBtn?.addEventListener("click", capturePhotoMealWithCamera);
   ui.photoMealAnalyzeBtn?.addEventListener("click", analyzePhotoMeal);
+  ui.photoMealImage?.addEventListener("change", () => {
+    // Prefer explicit file selection when user changes picker input.
+    photoMealCapturedDataUrl = "";
+  });
   ui.createProfileBtn.addEventListener("click", createProfileFromInput);
   ui.saveAsNewPlanBtn.addEventListener("click", saveAsNewPlan);
   ui.addRecipeBtn.addEventListener("click", addRecipeFromForm);
@@ -2209,8 +2216,8 @@ function renderPhotoMealHistory() {
 
 async function analyzePhotoMeal() {
   const file = ui.photoMealImage?.files?.[0];
-  if (!file) {
-    alert("Wybierz zdjęcie posiłku.");
+  if (!file && !photoMealCapturedDataUrl) {
+    alert("Wybierz zdjęcie posiłku lub użyj aparatu.");
     return;
   }
   const date = ui.photoMealDate?.value || new Date().toISOString().slice(0, 10);
@@ -2220,7 +2227,7 @@ async function analyzePhotoMeal() {
   ui.photoMealAnalyzeBtn.disabled = true;
   setPhotoMealResultHtml("Analizuję zdjęcie...");
   try {
-    const imageDataUrl = await fileToCompressedDataUrl(file, 1024, 0.78);
+    const imageDataUrl = photoMealCapturedDataUrl || await fileToCompressedDataUrl(file, 1024, 0.78);
     const headers = { "Content-Type": "application/json" };
     if (supabase) {
       const { data: { session } } = await supabase.auth.getSession();
@@ -2264,12 +2271,46 @@ async function analyzePhotoMeal() {
       <p><strong>Szacowana kaloryczność:</strong> ${escapeHtml(String(entry.estimatedKcal))} kcal</p>
       <p class="settings-note">B: ${entry.proteinG ?? "-"} g | T: ${entry.fatG ?? "-"} g | W: ${entry.carbsG ?? "-"} g | Pewność: ${entry.confidence != null ? `${Math.round(entry.confidence * 100)}%` : "-"}</p>
       ${entry.summary ? `<p>${escapeHtml(entry.summary)}</p>` : ""}
+      ${entry.imageDataUrl ? `<img src="${entry.imageDataUrl}" alt="Zdjęcie do analizy" class="photo-meal-thumb" />` : ""}
     `);
     if (ui.photoMealImage) ui.photoMealImage.value = "";
+    photoMealCapturedDataUrl = "";
   } catch (err) {
     setPhotoMealResultHtml(escapeHtml(err.message || "Nie udało się przeanalizować zdjęcia."));
   } finally {
     ui.photoMealAnalyzeBtn.disabled = false;
+  }
+}
+
+async function capturePhotoMealWithCamera() {
+  const camera = window.Capacitor?.Plugins?.Camera;
+  if (!camera) {
+    alert("Aparat jest dostępny w aplikacji mobilnej (iOS/Android).");
+    return;
+  }
+  try {
+    ui.photoMealCameraBtn.disabled = true;
+    const photo = await camera.getPhoto({
+      quality: 78,
+      allowEditing: false,
+      resultType: "dataUrl",
+      source: "CAMERA"
+    });
+    if (!photo?.dataUrl) {
+      alert("Nie udało się pobrać zdjęcia z aparatu.");
+      return;
+    }
+    photoMealCapturedDataUrl = photo.dataUrl;
+    if (ui.photoMealImage) ui.photoMealImage.value = "";
+    setPhotoMealResultHtml(`
+      <p><strong>Zdjęcie z aparatu gotowe do analizy.</strong></p>
+      <img src="${photoMealCapturedDataUrl}" alt="Nowe zdjęcie posiłku" class="photo-meal-thumb" />
+    `);
+  } catch (err) {
+    if (String(err?.message || "").toLowerCase().includes("cancel")) return;
+    alert(err?.message || "Nie udało się otworzyć aparatu.");
+  } finally {
+    ui.photoMealCameraBtn.disabled = false;
   }
 }
 
