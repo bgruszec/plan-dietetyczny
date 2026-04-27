@@ -16,20 +16,6 @@
         <h1>Plan dietetyczny</h1>
         <p id="heroKcal" hidden></p>
       </div>
-      <div class="topbar-trail hidden" id="topbarTrail">
-        <label>
-          Profil
-          <select id="profileSelect"></select>
-        </label>
-        <div class="profile-create-wrap">
-          <input id="newProfileName" type="text" placeholder="Nowy profil (np. Masa)" />
-          <button id="createProfileBtn" type="button">Utwórz profil</button>
-        </div>
-        <div class="auth-chip hidden" id="authChip">
-          <span id="authStatus"></span>
-          <button id="logoutBtn" type="button">Wyloguj</button>
-        </div>
-      </div>
     </header>
 
     <section class="card auth-card" id="authCard">
@@ -197,9 +183,9 @@
         </label>
         <label class="consult-option">
           <input id="consultForceRecipePatch" type="checkbox" />
-          W odpowiedzi oczekuję konkretnej propozycji zmian w przepisie (składniki / kroki / kcal)
+          <span class="consult-option-text">W odpowiedzi oczekuję konkretnej propozycji zmian w przepisie (składniki / kroki / kcal)</span>
         </label>
-        <p id="consultPatchHint" class="settings-note" hidden></p>
+        <p id="consultPatchHint" class="settings-note"></p>
         <div class="row">
           <button id="consultAskBtn" class="btn" type="button">Wyślij</button>
         </div>
@@ -209,6 +195,20 @@
 
       <section class="card app-section" id="section-settings">
         <h2>Ustawienia</h2>
+        <div class="settings-profile-panel hidden" id="topbarTrail">
+          <label>
+            Profil
+            <select id="profileSelect"></select>
+          </label>
+          <div class="profile-create-wrap">
+            <input id="newProfileName" type="text" placeholder="Nowy profil (np. Masa)" />
+            <button id="createProfileBtn" type="button">Utwórz profil</button>
+          </div>
+          <div class="auth-chip hidden" id="authChip">
+            <span id="authStatus"></span>
+            <button id="logoutBtn" type="button">Wyloguj</button>
+          </div>
+        </div>
         <div class="grid">
           <label>Motyw
             <select id="themeSelect">

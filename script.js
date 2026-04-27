@@ -1755,8 +1755,8 @@ function renderConsultPatchHint() {
   const el = ui.consultPatchHint;
   if (!el) return;
   if (!ui.consultForceRecipePatch?.checked) {
-    el.textContent = "";
-    el.setAttribute("hidden", "");
+    el.textContent = "Zaznacz checkbox, jeśli chcesz dostać gotową propozycję zmian konkretnego przepisu.";
+    el.removeAttribute("hidden");
     return;
   }
   el.textContent = "Po wysłaniu asystent zwróci gotową propozycję zmian w tym przepisie. Potem możesz kliknąć \"Zastosuj w przepisie\".";
