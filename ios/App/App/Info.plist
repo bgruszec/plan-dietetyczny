@@ -24,6 +24,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Aplikacja potrzebuje dostępu do aparatu, aby dodać zdjęcie posiłku do analizy kaloryczności.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Aplikacja potrzebuje dostępu do galerii zdjęć, aby wybrać zdjęcie posiłku do analizy kaloryczności.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Aplikacja może zapisać wybrane zdjęcie posiłku w historii analizy.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
