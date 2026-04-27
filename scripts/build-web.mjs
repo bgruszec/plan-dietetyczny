@@ -39,7 +39,8 @@ function copyWebEntries() {
 function writeRuntimeConfig() {
   const payload = {
     supabaseUrl: process.env.SUPABASE_URL || "",
-    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || ""
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || "",
+    apiBaseUrl: process.env.API_BASE_URL || ""
   };
   writeFileSync(resolve(outDir, "runtime-config.json"), JSON.stringify(payload, null, 2));
 }

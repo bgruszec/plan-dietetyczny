@@ -190,6 +190,7 @@ let selectedDay = 1;
 let pendingRecipePatch = null;
 let supabase = null;
 let authUser = null;
+let runtimeConfig = {};
 
 init();
 
@@ -210,6 +211,7 @@ async function initSupabase() {
       const res = await fetch(source, { cache: "no-store" });
       if (!res.ok) continue;
       const config = await res.json();
+      runtimeConfig = config && typeof config === "object" ? config : {};
       if (!config.supabaseUrl || !config.supabaseAnonKey) continue;
       supabase = createClient(config.supabaseUrl, config.supabaseAnonKey);
       return;
@@ -217,7 +219,15 @@ async function initSupabase() {
       // Try the next source.
     }
   }
+  runtimeConfig = {};
   supabase = null;
+}
+
+function chatDietEndpoint() {
+  const rawBase = String(runtimeConfig?.apiBaseUrl || "").trim();
+  if (!rawBase) return "/api/chat-diet";
+  const cleanBase = rawBase.replace(/\/+$/, "");
+  return `${cleanBase}/api/chat-diet`;
 }
 
 async function restoreSessionAndBootstrap() {
@@ -1828,7 +1838,8 @@ async function askDietAssistantWithMessage(message, options = {}) {
       }
     }
 
-    const response = await fetch("/api/chat-diet", {
+    const endpoint = chatDietEndpoint();
+    const response = await fetch(endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify({
@@ -1856,7 +1867,14 @@ async function askDietAssistantWithMessage(message, options = {}) {
     ui.consultPrompt.value = "";
     if (ui.consultForceRecipePatch) ui.consultForceRecipePatch.checked = false;
   } catch (err) {
-    setConsultResponseText(err.message || "Nie udało się połączyć z asystentem.");
+    const msg = err?.message || "Nie udało się połączyć z asystentem.";
+    const isCapacitor = Boolean(window.Capacitor);
+    const missingApiBase = isCapacitor && !String(runtimeConfig?.apiBaseUrl || "").trim();
+    setConsultResponseText(
+      missingApiBase
+        ? `${msg}\n\nDla aplikacji iOS ustaw API_BASE_URL w .env (adres publiczny backendu), potem uruchom: npm run cap:sync:ios`
+        : msg
+    );
     pendingRecipePatch = null;
     renderPendingRecipePatch();
   } finally {
