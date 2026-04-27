@@ -738,22 +738,21 @@ function addCategoriesFromPlan(list, defaultPlan) {
         const id = row[slot.id];
         if (!id) return;
         if (!map[id]) map[id] = new Set();
-        if (slot.category === "sniadanie" || slot.category === "kolacja") {
-          map[id].add("sniadanie");
-          map[id].add("kolacja");
-        } else {
-          map[id].add(slot.category);
-        }
+        map[id].add(slot.category);
       });
     });
   });
 
   return list.map((r) => {
     const fromPlan = Array.from(map[r.id] || []);
+    const fromBase = Array.isArray(r.categories) ? r.categories : [];
     const fromFallback = fallbackRecipeCategories[r.id] || [];
-    const cats = Array.from(new Set([...fromPlan, ...fromFallback]));
+    const cats = Array.from(new Set([
+      ...fromBase,
+      ...fromPlan,
+      ...(fromBase.length || fromPlan.length ? [] : fromFallback)
+    ]));
     if (cats.length) return { ...r, categories: cats };
-    if (Array.isArray(r.categories) && r.categories.length) return r;
     return { ...r, categories: [] };
   });
 }
@@ -2005,7 +2004,12 @@ function applyStickyMetricFormDefaults(options = {}) {
 
   const history = getMetricsHistorySorted();
   const last = history.length ? history[history.length - 1] : null;
-  if (!last) return;
+  if (!last) {
+    ui.mAge.value = "";
+    ui.mHeight.value = "";
+    ui.mGender.value = "mezczyzna";
+    return;
+  }
 
   if (last.age != null && last.age !== "") ui.mAge.value = last.age;
   if (last.height != null && last.height !== "") ui.mHeight.value = last.height;
