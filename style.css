@@ -117,9 +117,12 @@ a:focus-visible {
   grid-template-columns: repeat(2, minmax(180px, 1fr));
   gap: 8px;
   margin-bottom: 10px;
+  min-width: 0;
+  max-width: 100%;
 }
 .recipe-create-grid textarea {
   min-height: 84px;
+  min-width: 0;
 }
 .recipe-create-grid #addRecipeBtn {
   grid-column: 1 / -1;
@@ -825,6 +828,19 @@ body[data-theme="light"] a:visited {
 
   .grid {
     grid-template-columns: 1fr;
+  }
+  .recipe-create-grid {
+    grid-template-columns: 1fr;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .recipe-create-grid input,
+  .recipe-create-grid textarea,
+  .recipe-create-grid button {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .row {
