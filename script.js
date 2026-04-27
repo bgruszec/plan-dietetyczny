@@ -2227,7 +2227,8 @@ async function analyzePhotoMeal() {
   ui.photoMealAnalyzeBtn.disabled = true;
   setPhotoMealResultHtml("Analizuję zdjęcie...");
   try {
-    const imageDataUrl = photoMealCapturedDataUrl || await fileToCompressedDataUrl(file, 1024, 0.78);
+    const sourceDataUrl = photoMealCapturedDataUrl || await fileToCompressedDataUrl(file, 768, 0.62);
+    const imageDataUrl = await ensureImagePayloadLimit(sourceDataUrl, 900_000);
     const headers = { "Content-Type": "application/json" };
     if (supabase) {
       const { data: { session } } = await supabase.auth.getSession();
@@ -2239,7 +2240,12 @@ async function analyzePhotoMeal() {
       body: JSON.stringify({ imageDataUrl, note })
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || `Błąd ${response.status}`);
+    if (!response.ok) {
+      const details = data?.details
+        ? ` [status=${data.details.status ?? "-"} ${String(data.details.body || "").slice(0, 120)}]`
+        : "";
+      throw new Error(`${data.error || `Błąd ${response.status}`}${details}`);
+    }
 
     const entry = {
       id: `local-${Date.now()}`,
@@ -2326,6 +2332,41 @@ async function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.78) {
   const ctx = canvas.getContext("2d");
   ctx.drawImage(img, 0, 0, w, h);
   return canvas.toDataURL("image/jpeg", quality);
+}
+
+async function ensureImagePayloadLimit(dataUrl, maxBytes = 900_000) {
+  const currentBytes = estimateDataUrlBytes(dataUrl);
+  if (currentBytes <= maxBytes) return dataUrl;
+  const steps = [
+    { max: 720, quality: 0.56 },
+    { max: 640, quality: 0.50 },
+    { max: 560, quality: 0.46 },
+    { max: 480, quality: 0.42 }
+  ];
+  let next = dataUrl;
+  for (const step of steps) {
+    next = await recompressDataUrl(next, step.max, step.quality);
+    if (estimateDataUrlBytes(next) <= maxBytes) return next;
+  }
+  return next;
+}
+
+async function recompressDataUrl(dataUrl, maxSize = 640, quality = 0.5) {
+  const img = await loadImage(dataUrl);
+  const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+function estimateDataUrlBytes(dataUrl) {
+  const body = String(dataUrl || "").split(",")[1] || "";
+  return Math.floor((body.length * 3) / 4);
 }
 
 function readFileAsDataUrl(file) {

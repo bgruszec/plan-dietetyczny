@@ -22,7 +22,11 @@ export async function runMealPhotoEstimate(req, res) {
   const preferredModel = String(process.env.GEMINI_VISION_MODEL || "gemini-1.5-flash").trim();
   const modelCandidates = uniqueModels([
     preferredModel,
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash",
     "gemini-1.5-flash",
+    "gemini-1.5-pro",
     "gemini-1.5-flash-latest",
     "gemini-1.5-pro-latest"
   ]);
