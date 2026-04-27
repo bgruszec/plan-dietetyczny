@@ -45,25 +45,6 @@
     ]
   },
   {
-    "id": "R3",
-    "title": "Placki bananowe",
-    "kcal": 620,
-    "ingredients": [
-      "banan - 120 g",
-      "mąka jaglana / owsiana - 60 g",
-      "jajka - 2 szt.",
-      "olej rzepakowy - 5 g",
-      "skyr naturalny - 200 g",
-      "cynamon - do smaku"
-    ],
-    "steps": [
-      "Banana rozgnieć widelcem.",
-      "Wymieszaj z mąką, jajkami i cynamonem.",
-      "Smaż małe placki na 5 g oleju.",
-      "Podaj ze skyrem."
-    ]
-  },
-  {
     "id": "R4",
     "title": "Pieczony budyń",
     "kcal": 202,
@@ -125,30 +106,6 @@
     ]
   },
   {
-    "id": "R7",
-    "title": "Kanapka BLT z kurczakiem",
-    "kcal": 620,
-    "ingredients": [
-      "pierś z kurczaka - 150 g",
-      "chleb żytni razowy / pełnoziarnisty - 100 g",
-      "boczek - 20 g",
-      "majonez - 10 g",
-      "pomidor - 160 g",
-      "ogórek lub papryka - 150 g",
-      "musztarda - 20 g",
-      "miód - 6 g",
-      "ocet balsamiczny - 10 g",
-      "sól, pieprz, zioła"
-    ],
-    "steps": [
-      "Boczek podsmaż na suchej patelni.",
-      "Kurczaka dopraw i usmaż lub zgrilluj.",
-      "Pieczywo podpiecz, posmaruj majonezem.",
-      "Dodaj warzywa, kurczaka i boczek.",
-      "Musztardę wymieszaj z miodem i octem, użyj jako sosu."
-    ]
-  },
-  {
     "id": "R8",
     "title": "Baton proteinowy Vitanella",
     "kcal": 241,
@@ -157,26 +114,6 @@
     ],
     "steps": [
       "Zjedz jako przekąskę, najlepiej po posiłku albo do kawy."
-    ]
-  },
-  {
-    "id": "R9",
-    "title": "Croissant z brzoskwinią",
-    "kcal": 630,
-    "ingredients": [
-      "croissant maślany - 1 szt. / około 60 g",
-      "masło - 5 g",
-      "brzoskwinia - 180 g",
-      "skyr naturalny - 225 g",
-      "ekstrakt waniliowy - 1-2 g",
-      "erytrol - 10 g",
-      "sok z cytryny - 8 g"
-    ],
-    "steps": [
-      "Brzoskwinię pokrój i krótko podduś na 5 g masła.",
-      "Skyr wymieszaj z wanilią, erytrolem i sokiem z cytryny.",
-      "Croissanta podgrzej lub podpiecz.",
-      "Podaj z kremem skyr i brzoskwinią."
     ]
   },
   {
@@ -243,24 +180,6 @@
     ]
   },
   {
-    "id": "R13",
-    "title": "Kanapka z serem, szynką i ogórkiem",
-    "kcal": 620,
-    "ingredients": [
-      "chleb żytni razowy / pełnoziarnisty - 120 g",
-      "masło - 10 g",
-      "szynka z kurczaka / indyka - 80 g",
-      "ser gouda - 40 g",
-      "ogórek kiszony lub małosolny - 100 g",
-      "pomidor lub papryka - 200 g"
-    ],
-    "steps": [
-      "Pieczywo posmaruj masłem.",
-      "Dodaj szynkę, ser i warzywa.",
-      "Trzymaj masło do 10 g."
-    ]
-  },
-  {
     "id": "R14",
     "title": "Pizza na gotowym spodzie z pieczarkami i szynką",
     "kcal": 640,
@@ -283,26 +202,6 @@
     ]
   },
   {
-    "id": "R15",
-    "title": "Zapiekanka z pomidorem i mozzarellą",
-    "kcal": 630,
-    "ingredients": [
-      "półbagietka - 80 g",
-      "mozzarella - 100 g",
-      "szynka z indyka - 80 g",
-      "pomidor - 160 g",
-      "cebula czerwona - 40 g",
-      "oliwa - 5 g",
-      "bazylia, chilli, sól, pieprz"
-    ],
-    "steps": [
-      "Pieczywo podpiecz.",
-      "Pomidora i cebulę pokrój, wymieszaj z oliwą i przyprawami.",
-      "Na pieczywie ułóż warzywa, szynkę i mozzarellę.",
-      "Zapiecz do rozpuszczenia sera."
-    ]
-  },
-  {
     "id": "R16",
     "title": "Jogurt z truskawkami i orzechami",
     "kcal": 209,
@@ -315,23 +214,6 @@
     "steps": [
       "Wymieszaj skyr z owocami.",
       "Posyp orzechami."
-    ]
-  },
-  {
-    "id": "R17",
-    "title": "Parówki z musztardą, warzywami i pieczywem",
-    "kcal": 620,
-    "ingredients": [
-      "parówki drobiowe dobrej jakości - około 200 g",
-      "chleb żytni razowy - 90 g",
-      "musztarda - 20 g",
-      "ogórek - 150 g",
-      "pomidor - 160 g",
-      "papryka - 100 g"
-    ],
-    "steps": [
-      "Parówki podgrzej w wodzie.",
-      "Podaj z pieczywem, musztardą i dużą porcją warzyw."
     ]
   },
   {
@@ -357,24 +239,6 @@
     ]
   },
   {
-    "id": "R19",
-    "title": "Kanapki z chałki z twarożkiem",
-    "kcal": 600,
-    "ingredients": [
-      "chałka - 70 g",
-      "twaróg półtłusty - 200 g",
-      "jogurt naturalny albo skyr - 50 g",
-      "miód - 10 g",
-      "maliny lub inne owoce - 150-200 g",
-      "migdały - 10 g"
-    ],
-    "steps": [
-      "Twaróg rozgnieć z jogurtem lub skyrem.",
-      "Chałkę posmaruj twarożkiem.",
-      "Dodaj miód, owoce i migdały."
-    ]
-  },
-  {
     "id": "R20",
     "title": "Pianka z galaretki",
     "kcal": 200,
@@ -389,25 +253,6 @@
       "Ostudź, ale nie dopuść do pełnego stężenia.",
       "Miksuj 10-15 minut, aż powstanie pianka.",
       "Schłodź w lodówce i posyp płatkami migdałów."
-    ]
-  },
-  {
-    "id": "R21",
-    "title": "Kanapki z szynką, jajkiem i ogórkiem kiszonym",
-    "kcal": 620,
-    "ingredients": [
-      "chleb żytni razowy - 120 g",
-      "masło - 10 g",
-      "szynka z kurczaka - 80 g",
-      "jajka - 2 szt.",
-      "ogórek kiszony - 100 g",
-      "pomidor - 160 g"
-    ],
-    "steps": [
-      "Jajka ugotuj na twardo.",
-      "Chleb posmaruj masłem.",
-      "Dodaj szynkę, jajko i ogórka.",
-      "Podaj z pomidorem."
     ]
   },
   {
@@ -434,23 +279,6 @@
     ]
   },
   {
-    "id": "R23",
-    "title": "Truskawkowa owsianka",
-    "kcal": 620,
-    "ingredients": [
-      "płatki owsiane - 70 g",
-      "mleko 1,5% - 250 g",
-      "odżywka białkowa - 25 g",
-      "truskawki - 150 g",
-      "masło orzechowe - 15 g"
-    ],
-    "steps": [
-      "Płatki ugotuj na mleku.",
-      "Po zdjęciu z ognia wmieszaj odżywkę białkową.",
-      "Dodaj truskawki i masło orzechowe."
-    ]
-  },
-  {
     "id": "R24",
     "title": "Słodka kanapka z wafli ryżowych",
     "kcal": 214,
@@ -466,23 +294,6 @@
       "Dodaj plasterki banana.",
       "Czekoladę rozpuść i polej wafla.",
       "Dodaj szczyptę soli."
-    ]
-  },
-  {
-    "id": "R25",
-    "title": "Jajko sadzone ze szparagami i pieczywem",
-    "kcal": 620,
-    "ingredients": [
-      "jajka - 3 szt.",
-      "chleb żytni razowy - 120 g",
-      "oliwa - 5 g",
-      "szparagi - 300 g",
-      "sól, pieprz"
-    ],
-    "steps": [
-      "Szparagi podduś na patelni z oliwą i odrobiną wody.",
-      "Na tej samej patelni usmaż jajka.",
-      "Podaj z pieczywem."
     ]
   },
   {
@@ -509,23 +320,6 @@
     ]
   },
   {
-    "id": "R27",
-    "title": "Kanapki z jajkiem i hummusem",
-    "kcal": 630,
-    "ingredients": [
-      "chleb żytni razowy - 100 g",
-      "hummus - 40 g",
-      "jajka - 3 szt.",
-      "ogórek świeży - 250-300 g",
-      "pomidor lub papryka - 150 g"
-    ],
-    "steps": [
-      "Jajka ugotuj na twardo.",
-      "Chleb posmaruj hummusem.",
-      "Dodaj jajka i warzywa."
-    ]
-  },
-  {
     "id": "R28",
     "title": "Koktajl jagodowo-bananowy",
     "kcal": 206,
@@ -538,25 +332,6 @@
     "steps": [
       "Wszystkie składniki zblenduj.",
       "Dolej wody, jeśli chcesz rzadszą konsystencję."
-    ]
-  },
-  {
-    "id": "R29",
-    "title": "Tosty caprese z jajkiem sadzonym",
-    "kcal": 620,
-    "ingredients": [
-      "bułka ciabatta albo bułka grahamka - 80 g",
-      "mozzarella - 100 g",
-      "jajka - 2 szt.",
-      "pomidor - 320 g",
-      "oliwa - 5 g",
-      "bazylia, szczypiorek, sól, pieprz"
-    ],
-    "steps": [
-      "Bułkę podpiecz na suchej patelni lub grillu.",
-      "Na pieczywie ułóż pomidora i mozzarellę.",
-      "Jajka usmaż na patelni z 5 g oliwy.",
-      "Podaj jako tosty, bez robienia sałatki."
     ]
   },
   {
@@ -584,27 +359,6 @@
     ]
   },
   {
-    "id": "R31",
-    "title": "Gulasz wołowy z marchwią i ziemniakami",
-    "kcal": 620,
-    "ingredients": [
-      "chuda wołowina / rostbef - 150 g",
-      "ziemniaki - 300 g",
-      "marchew - 160 g",
-      "cebula - 80 g",
-      "bulion - 250 g",
-      "olej rzepakowy - 5 g",
-      "koncentrat pomidorowy - 20 g",
-      "sól, pieprz, papryka, liść laurowy"
-    ],
-    "steps": [
-      "Mięso pokrój w kostkę, dopraw i obsmaż na oleju.",
-      "Dodaj cebulę, marchew, koncentrat i bulion.",
-      "Duś do miękkości mięsa.",
-      "Podaj z gotowanymi ziemniakami."
-    ]
-  },
-  {
     "id": "R32",
     "title": "Jajka po turecku",
     "kcal": 630,
@@ -621,26 +375,6 @@
       "Jajka ugotuj w koszulkach albo usmaż jako sadzone.",
       "Na patelni podgrzej oliwę z papryką wędzoną i chilli.",
       "Podaj jajka na jogurcie, polej oliwą i zjedz z pieczywem."
-    ]
-  },
-  {
-    "id": "R33",
-    "title": "Jajecznica z pieczarkami, cebulą i chlebem",
-    "kcal": 620,
-    "ingredients": [
-      "jajka - 3 szt.",
-      "pieczarki - 120 g",
-      "cebula - 40 g",
-      "szynka z kurczaka - 50-80 g",
-      "olej rzepakowy lub masło - 5 g",
-      "chleb żytni - 110-120 g",
-      "pomidor/ogórek/rzodkiewka - dowolnie"
-    ],
-    "steps": [
-      "Pieczarki i cebulę podsmaż na 5 g tłuszczu.",
-      "Dodaj jajka i szynkę.",
-      "Smaż do ulubionego stopnia ścięcia.",
-      "Podaj z chlebem i warzywami."
     ]
   },
   {
@@ -684,5 +418,156 @@
       "Majonez wymieszaj z jogurtem, solą i pieprzem.",
       "Wymieszaj z ryżem, szynką i warzywami. To jest wersja mniej majonezowa i bez sałatkowego charakteru."
     ]
+  },
+  {
+    "id": "P_FROM_B_L1",
+    "title": "Pizza na gotowym spodzie z pieczarkami i szynką",
+    "kcal": 590,
+    "ingredients": [
+      "Placek piadina lub tortilla pełnoziarnista 100 g",
+      "Passata pomidorowa 60 g",
+      "Szynka z indyka 80 g",
+      "Mozzarella light 45 g",
+      "Pieczarki 120 g",
+      "Cebula 40 g",
+      "Oregano, sól, pieprz"
+    ],
+    "steps": [
+      "Placek posmaruj passatą i dopraw oregano.",
+      "Dodaj pokrojone pieczarki, cebulę, szynkę i mozzarellę.",
+      "Piecz 8-10 minut w 220°C albo podgrzej na patelni pod przykryciem."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "bartek",
+    "adaptedFor": "paulina"
+  },
+  {
+    "id": "P_FROM_B_L2",
+    "title": "Kurczak w kremowym sosie pesto",
+    "kcal": 600,
+    "ingredients": [
+      "Pierś z kurczaka 130 g",
+      "Makaron pełnoziarnisty 55 g",
+      "Pesto zielone 10 g",
+      "Jogurt naturalny 2% 90 g",
+      "Pomidorki koktajlowe 120 g",
+      "Szpinak 50 g",
+      "Oliwa 5 g",
+      "Parmezan 5 g"
+    ],
+    "steps": [
+      "Makaron ugotuj al dente.",
+      "Kurczaka pokrój, dopraw i podsmaż na oliwie.",
+      "Dodaj pomidorki, szpinak, pesto i jogurt; krótko podgrzej.",
+      "Wymieszaj z makaronem i posyp parmezanem."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "bartek",
+    "adaptedFor": "paulina"
+  },
+  {
+    "id": "P_FROM_B_L3",
+    "title": "Gnocchi w kremowym sosie ze skyrem",
+    "kcal": 585,
+    "ingredients": [
+      "Gnocchi 160 g",
+      "Skyr naturalny 150 g",
+      "Serek śmietankowy lekki 35 g",
+      "Szpinak 60 g",
+      "Pomidorki koktajlowe 100 g",
+      "Czosnek 1 ząbek",
+      "Oliwa 5 g",
+      "Parmezan 5 g"
+    ],
+    "steps": [
+      "Gnocchi ugotuj według instrukcji.",
+      "Na oliwie podsmaż czosnek, szpinak i pomidorki.",
+      "Dodaj serek, gnocchi i przyprawy; wymieszaj.",
+      "Podaj ze skyrem jako dodatkiem lub deserem po obiedzie."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "bartek",
+    "adaptedFor": "paulina"
+  },
+  {
+    "id": "P_FROM_B_L4",
+    "title": "Gyros bowl z pieczonymi ziemniakami",
+    "kcal": 595,
+    "ingredients": [
+      "Pierś z kurczaka 130 g",
+      "Ziemniaki 300 g",
+      "Jogurt naturalny 2% 80 g",
+      "Ogórek 150 g",
+      "Pomidor 160 g",
+      "Cebula czerwona 30 g",
+      "Oliwa 5 g",
+      "Przyprawa gyros, czosnek granulowany"
+    ],
+    "steps": [
+      "Ziemniaki pokrój i upiecz w 200°C.",
+      "Kurczaka dopraw przyprawą gyros i przygotuj na patelni lub grillu.",
+      "Warzywa pokrój, jogurt wymieszaj z czosnkiem i solą.",
+      "Ułóż wszystko w misce i polej sosem."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "bartek",
+    "adaptedFor": "paulina"
+  },
+  {
+    "id": "P_FROM_B_L5",
+    "title": "Grillowana karkówka z ziemniakami i warzywami",
+    "kcal": 610,
+    "ingredients": [
+      "Karkówka wieprzowa 110 g",
+      "Ziemniaki 300 g",
+      "Ogórek 150 g",
+      "Pomidor 160 g",
+      "Jogurt naturalny 2% 70 g",
+      "Oliwa 3 g",
+      "Przyprawy do grilla"
+    ],
+    "steps": [
+      "Ziemniaki ugotuj lub upiecz.",
+      "Karkówkę dopraw i zgrilluj lub usmaż na patelni grillowej.",
+      "Warzywa pokrój, jogurt dopraw czosnkiem i ziołami.",
+      "Podaj mięso z ziemniakami, warzywami i sosem jogurtowym."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "bartek",
+    "adaptedFor": "paulina"
+  },
+  {
+    "id": "P_FROM_B_L6",
+    "title": "Gulasz wołowy z marchwią i ziemniakami",
+    "kcal": 590,
+    "ingredients": [
+      "Chuda wołowina 120 g",
+      "Ziemniaki 280 g",
+      "Marchew 120 g",
+      "Cebula 50 g",
+      "Passata pomidorowa 120 g",
+      "Oliwa 5 g",
+      "Papryka słodka, liść laurowy, sól, pieprz"
+    ],
+    "steps": [
+      "Wołowinę pokrój, dopraw i krótko obsmaż na oliwie.",
+      "Dodaj cebulę, marchew, passatę i odrobinę wody; duś do miękkości.",
+      "Ziemniaki ugotuj osobno i podaj z gulaszem."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "bartek",
+    "adaptedFor": "paulina"
   }
 ]

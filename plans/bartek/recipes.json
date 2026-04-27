@@ -684,5 +684,821 @@
       "Majonez wymieszaj z jogurtem, solą i pieprzem.",
       "Wymieszaj z ryżem, szynką i warzywami. To jest wersja mniej majonezowa i bez sałatkowego charakteru."
     ]
+  },
+  {
+    "id": "B_FROM_P_L1",
+    "title": "Makaron primavera z kurczakiem i cukinią",
+    "kcal": 680,
+    "ingredients": [
+      "Makaron pełnoziarnisty 80 g",
+      "Pierś z kurczaka 170 g",
+      "Cukinia 180 g",
+      "Pomidorki koktajlowe 120 g",
+      "Oliwa 10 g",
+      "Parmezan 10 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L2",
+    "title": "Warzywny sos z mięsem mielonym i makaronem",
+    "kcal": 690,
+    "ingredients": [
+      "Makaron pełnoziarnisty 80 g",
+      "Mięso mielone z indyka 180 g",
+      "Passata 220 g",
+      "Marchew 100 g",
+      "Cukinia 150 g",
+      "Oliwa 10 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L3",
+    "title": "Zupa krem z białych warzyw i mini klopsikami",
+    "kcal": 670,
+    "ingredients": [
+      "Mięso mielone z indyka 180 g",
+      "Ziemniaki 330 g",
+      "Kalafior 250 g",
+      "Korzeń pietruszki 100 g",
+      "Jogurt naturalny 100 g",
+      "Oliwa 8 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L4",
+    "title": "Leczo z kurczakiem",
+    "kcal": 680,
+    "ingredients": [
+      "Pierś z kurczaka 180 g",
+      "Ryż basmati 65 g",
+      "Papryka 220 g",
+      "Cukinia 180 g",
+      "Passata 250 g",
+      "Oliwa 8 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L5",
+    "title": "Grillowany kurczak z warzywami i pieczywem",
+    "kcal": 690,
+    "ingredients": [
+      "Pierś z kurczaka 190 g",
+      "Chleb żytni 110 g",
+      "Pomidor 160 g",
+      "Ogórek 150 g",
+      "Oliwa 10 g",
+      "Ocet balsamiczny 10 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L6",
+    "title": "Kurczak po seczuańsku",
+    "kcal": 680,
+    "ingredients": [
+      "Pierś z kurczaka 180 g",
+      "Ryż basmati 70 g",
+      "Mieszanka warzyw 250 g",
+      "Olej rzepakowy 8 g",
+      "Sos sojowy 15 g",
+      "Imbir, czosnek, chili"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L7",
+    "title": "Ryż z kalafiora z kurczakiem i warzywami",
+    "kcal": 660,
+    "ingredients": [
+      "Pierś z kurczaka 190 g",
+      "Ryż basmati 55 g",
+      "Kalafior 250 g",
+      "Papryka 150 g",
+      "Oliwa 10 g",
+      "Przyprawy"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L8",
+    "title": "Pęczak z łososiem",
+    "kcal": 700,
+    "ingredients": [
+      "Łosoś 150 g",
+      "Kasza pęczak 70 g",
+      "Ogórek 100 g",
+      "Pomidor 160 g",
+      "Jogurt naturalny 80 g",
+      "Sok z cytryny, koperek"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L9",
+    "title": "Gulasz z soczewicy czerwonej",
+    "kcal": 660,
+    "ingredients": [
+      "Soczewica czerwona 85 g",
+      "Ryż basmati 45 g",
+      "Pomidory z puszki 250 g",
+      "Marchew 100 g",
+      "Olej rzepakowy 10 g",
+      "Curry, czosnek"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L10",
+    "title": "Zupa pomidorowa z kurczakiem",
+    "kcal": 650,
+    "ingredients": [
+      "Pierś z kurczaka 180 g",
+      "Makaron pełnoziarnisty 60 g",
+      "Passata 250 g",
+      "Marchew 100 g",
+      "Jogurt naturalny 80 g",
+      "Oliwa 5 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L11",
+    "title": "Kurczak w kremowym sosie curry",
+    "kcal": 680,
+    "ingredients": [
+      "Pierś z kurczaka 180 g",
+      "Ryż basmati 70 g",
+      "Jogurt naturalny 100 g",
+      "Papryka 150 g",
+      "Oliwa 8 g",
+      "Curry"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L12",
+    "title": "Kurczak pieczony z kopytkami i surówką colesław",
+    "kcal": 720,
+    "ingredients": [
+      "Pierś z kurczaka 180 g",
+      "Kopytka 230 g",
+      "Kapusta 150 g",
+      "Marchew 80 g",
+      "Jogurt naturalny 90 g",
+      "Oliwa 8 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L13",
+    "title": "Burger bowl",
+    "kcal": 700,
+    "ingredients": [
+      "Chuda wołowina mielona 170 g",
+      "Ziemniaki 330 g",
+      "Ogórek konserwowy 60 g",
+      "Pomidor 160 g",
+      "Jogurt naturalny 80 g",
+      "Ketchup 15 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L14",
+    "title": "Botwinka z jajkiem i ziemniakami",
+    "kcal": 650,
+    "ingredients": [
+      "Botwinka 250 g",
+      "Jajka 2 szt.",
+      "Ziemniaki 350 g",
+      "Jogurt naturalny 120 g",
+      "Koperek",
+      "Oliwa 5 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L15",
+    "title": "Bowl z łososiem teriyaki",
+    "kcal": 710,
+    "ingredients": [
+      "Łosoś 150 g",
+      "Ryż basmati 70 g",
+      "Ogórek 150 g",
+      "Marchew 100 g",
+      "Sos teriyaki 25 g",
+      "Sezam 8 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L16",
+    "title": "Polędwica wieprzowa w sosie porowym",
+    "kcal": 690,
+    "ingredients": [
+      "Polędwiczka wieprzowa 180 g",
+      "Ziemniaki 330 g",
+      "Por 120 g",
+      "Jogurt naturalny 100 g",
+      "Oliwa 8 g",
+      "Koperek"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L17",
+    "title": "Leczo z ciecierzycą oraz chorizo",
+    "kcal": 700,
+    "ingredients": [
+      "Ciecierzyca konserwowa 140 g",
+      "Chorizo 50 g",
+      "Papryka 220 g",
+      "Passata 250 g",
+      "Ryż basmati 45 g",
+      "Oliwa 5 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L18",
+    "title": "Karkówka w sosie grzybowym z puree z ziemniaków",
+    "kcal": 720,
+    "ingredients": [
+      "Karkówka 150 g",
+      "Ziemniaki 350 g",
+      "Pieczarki 200 g",
+      "Jogurt naturalny 80 g",
+      "Oliwa 5 g",
+      "Cebula 60 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L19",
+    "title": "Gulasz wołowy z kaszą",
+    "kcal": 690,
+    "ingredients": [
+      "Chuda wołowina 160 g",
+      "Kasza gryczana 70 g",
+      "Marchew 100 g",
+      "Passata 200 g",
+      "Oliwa 8 g",
+      "Cebula 60 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L20",
+    "title": "Dahl z soczewicy czerwonej z pestkami dyni",
+    "kcal": 670,
+    "ingredients": [
+      "Soczewica czerwona 85 g",
+      "Ryż basmati 45 g",
+      "Pomidory z puszki 250 g",
+      "Pestki dyni 15 g",
+      "Olej rzepakowy 8 g",
+      "Curry"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L21",
+    "title": "Krewetki w sosie kokosowym z curry",
+    "kcal": 680,
+    "ingredients": [
+      "Krewetki 170 g",
+      "Ryż basmati 70 g",
+      "Mleczko kokosowe light 100 g",
+      "Papryka 150 g",
+      "Oliwa 5 g",
+      "Curry"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L22",
+    "title": "Dorsz z ziemniakami, szpinakiem oraz pomidorkami",
+    "kcal": 660,
+    "ingredients": [
+      "Dorsz 200 g",
+      "Ziemniaki 350 g",
+      "Szpinak 100 g",
+      "Pomidorki koktajlowe 120 g",
+      "Oliwa 8 g",
+      "Sok z cytryny"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L23",
+    "title": "Klopsiki w sosie pomidorowym z kaszą jęczmienną",
+    "kcal": 690,
+    "ingredients": [
+      "Mięso mielone z indyka 180 g",
+      "Kasza jęczmienna 70 g",
+      "Passata 250 g",
+      "Cebula 60 g",
+      "Oliwa 8 g",
+      "Natka pietruszki"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L24",
+    "title": "Kaszotto z kurczakiem oraz szpinakiem",
+    "kcal": 680,
+    "ingredients": [
+      "Pierś z kurczaka 180 g",
+      "Kasza pęczak 75 g",
+      "Szpinak 100 g",
+      "Jogurt naturalny 80 g",
+      "Oliwa 8 g",
+      "Czosnek"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L25",
+    "title": "Naleśniki ze szpinakiem i serem typu feta",
+    "kcal": 700,
+    "ingredients": [
+      "Naleśniki 2 szt. ok. 190 g",
+      "Szpinak 120 g",
+      "Ser feta 120 g",
+      "Pomidory suszone 35 g",
+      "Oliwa 5 g",
+      "Czosnek"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L26",
+    "title": "Danie jednogarnkowe z mięsem",
+    "kcal": 690,
+    "ingredients": [
+      "Mięso mielone z indyka 180 g",
+      "Ryż 70 g",
+      "Passata 250 g",
+      "Papryka 150 g",
+      "Cebula 60 g",
+      "Oliwa 8 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L27",
+    "title": "Halloumi z sosem warzywnym i ryżem",
+    "kcal": 700,
+    "ingredients": [
+      "Ser halloumi 100 g",
+      "Ryż basmati 65 g",
+      "Passata 200 g",
+      "Cukinia 150 g",
+      "Papryka 150 g",
+      "Oliwa 5 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L28",
+    "title": "Zupa śródziemnomorska",
+    "kcal": 670,
+    "ingredients": [
+      "Mięso mielone z indyka 160 g",
+      "Makaron pełnoziarnisty 60 g",
+      "Pomidory z puszki 250 g",
+      "Cukinia 150 g",
+      "Oliwa 8 g",
+      "Mozzarella 40 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L29",
+    "title": "Burger wołowy z pikantną salsą",
+    "kcal": 720,
+    "ingredients": [
+      "Bułka grahamka 90 g",
+      "Chuda wołowina mielona 170 g",
+      "Ser cheddar 20 g",
+      "Pomidor 160 g",
+      "Cebula 40 g",
+      "Jogurt naturalny 50 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L30",
+    "title": "Kurczak na parze z ziemniakami i mizerią",
+    "kcal": 670,
+    "ingredients": [
+      "Pierś z kurczaka 190 g",
+      "Ziemniaki 380 g",
+      "Ogórek 200 g",
+      "Jogurt naturalny 120 g",
+      "Oliwa 5 g",
+      "Koperek"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L31",
+    "title": "Gołąbki bez zawijania",
+    "kcal": 690,
+    "ingredients": [
+      "Mięso mielone z indyka 180 g",
+      "Ryż 65 g",
+      "Kapusta 300 g",
+      "Passata 250 g",
+      "Oliwa 8 g",
+      "Cebula 60 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L32",
+    "title": "Kurczak curry z soczewicą konserwową",
+    "kcal": 700,
+    "ingredients": [
+      "Pierś z kurczaka 180 g",
+      "Soczewica konserwowa 150 g",
+      "Ryż basmati 55 g",
+      "Papryka 150 g",
+      "Jogurt naturalny 80 g",
+      "Curry"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L33",
+    "title": "Karkówka z grilla z warzywnymi szaszłykami",
+    "kcal": 720,
+    "ingredients": [
+      "Karkówka 150 g",
+      "Ziemniaki 350 g",
+      "Papryka 150 g",
+      "Cukinia 150 g",
+      "Jogurt naturalny 80 g",
+      "Przyprawy do grilla"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
+  },
+  {
+    "id": "B_FROM_P_L34",
+    "title": "Zupa a la lasagne",
+    "kcal": 690,
+    "ingredients": [
+      "Mięso mielone z indyka 170 g",
+      "Makaron pełnoziarnisty 65 g",
+      "Passata 300 g",
+      "Mozzarella 50 g",
+      "Cebula 60 g",
+      "Oliwa 5 g"
+    ],
+    "steps": [
+      "Przygotuj składniki i odważ produkty przed obróbką termiczną.",
+      "Ugotuj bazę węglowodanową zgodnie z instrukcją na opakowaniu albo upiecz ziemniaki w piekarniku.",
+      "Mięso, rybę, tofu lub warzywa dopraw i przygotuj na patelni, w garnku albo w piekarniku zgodnie z opisem dania.",
+      "Połącz składniki, dopraw do smaku i podawaj na ciepło."
+    ],
+    "categories": [
+      "obiad"
+    ],
+    "sourceProfile": "paulina",
+    "adaptedFor": "bartek"
   }
 ]

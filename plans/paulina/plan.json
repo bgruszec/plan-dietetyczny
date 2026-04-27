@@ -1,24 +1,122 @@
 {
-  "targetKcal": 2100,
+  "targetKcal": 1400,
   "defaultPlan": {
     "1": [
-      { "day": 1, "meal1": "R1", "meal2": "R2", "meal3": "R3", "snack": "R4", "total": 2072 },
-      { "day": 2, "meal1": "R5", "meal2": "R6", "meal3": "R7", "snack": "R8", "total": 2071 },
-      { "day": 3, "meal1": "R9", "meal2": "R10", "meal3": "R11", "snack": "R12", "total": 2100 },
-      { "day": 4, "meal1": "R13", "meal2": "R14", "meal3": "R15", "snack": "R16", "total": 2099 },
-      { "day": 5, "meal1": "R17", "meal2": "R18", "meal3": "R19", "snack": "R20", "total": 2070 },
-      { "day": 6, "meal1": "R21", "meal2": "R22", "meal3": "R23", "snack": "R24", "total": 2084 },
-      { "day": 7, "meal1": "R25", "meal2": "R26", "meal3": "R27", "snack": "R28", "total": 2096 }
+      {
+        "day": 1,
+        "meal1": "R1",
+        "meal2": "R4",
+        "meal3": "R16",
+        "snack": "",
+        "total": 1031
+      },
+      {
+        "day": 2,
+        "meal1": "R2",
+        "meal2": "R20",
+        "meal3": "R24",
+        "snack": "",
+        "total": 1044
+      },
+      {
+        "day": 3,
+        "meal1": "R5",
+        "meal2": "R8",
+        "meal3": "R12",
+        "snack": "",
+        "total": 1011
+      },
+      {
+        "day": 4,
+        "meal1": "R6",
+        "meal2": "R12",
+        "meal3": "R16",
+        "snack": "",
+        "total": 1049
+      },
+      {
+        "day": 5,
+        "meal1": "R10",
+        "meal2": "R4",
+        "meal3": "R8",
+        "snack": "",
+        "total": 1063
+      },
+      {
+        "day": 6,
+        "meal1": "R11",
+        "meal2": "R20",
+        "meal3": "R28",
+        "snack": "",
+        "total": 1056
+      },
+      {
+        "day": 7,
+        "meal1": "R14",
+        "meal2": "R12",
+        "meal3": "R24",
+        "snack": "",
+        "total": 1054
+      }
     ],
     "2": [
-      { "day": 8, "meal1": "R29", "meal2": "R30", "meal3": "R3", "snack": "R4", "total": 2082 },
-      { "day": 9, "meal1": "R5", "meal2": "R31", "meal3": "R7", "snack": "R8", "total": 2051 },
-      { "day": 10, "meal1": "R32", "meal2": "R10", "meal3": "R11", "snack": "R12", "total": 2100 },
-      { "day": 11, "meal1": "R33", "meal2": "R14", "meal3": "R15", "snack": "R16", "total": 2099 },
-      { "day": 12, "meal1": "R17", "meal2": "R18", "meal3": "R34", "snack": "R20", "total": 2100 },
-      { "day": 13, "meal1": "R21", "meal2": "R22", "meal3": "R23", "snack": "R24", "total": 2084 },
-      { "day": 14, "meal1": "R25", "meal2": "R26", "meal3": "R35", "snack": "R28", "total": 2096 }
-    },
+      {
+        "day": 8,
+        "meal1": "R18",
+        "meal2": "R4",
+        "meal3": "R16",
+        "snack": "",
+        "total": 1061
+      },
+      {
+        "day": 9,
+        "meal1": "R22",
+        "meal2": "R12",
+        "meal3": "R28",
+        "snack": "",
+        "total": 1036
+      },
+      {
+        "day": 10,
+        "meal1": "R26",
+        "meal2": "R8",
+        "meal3": "R24",
+        "snack": "",
+        "total": 1095
+      },
+      {
+        "day": 11,
+        "meal1": "R30",
+        "meal2": "R16",
+        "meal3": "R20",
+        "snack": "",
+        "total": 1049
+      },
+      {
+        "day": 12,
+        "meal1": "R32",
+        "meal2": "R8",
+        "meal3": "R24",
+        "snack": "",
+        "total": 1085
+      },
+      {
+        "day": 13,
+        "meal1": "R34",
+        "meal2": "R4",
+        "meal3": "R20",
+        "snack": "",
+        "total": 1032
+      },
+      {
+        "day": 14,
+        "meal1": "R35",
+        "meal2": "R16",
+        "meal3": "R28",
+        "snack": "",
+        "total": 1045
+      }
+    ],
     "3": [],
     "4": []
   }
