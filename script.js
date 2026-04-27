@@ -3,6 +3,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const APP_KEY = "diet-app-v3";
 const ACTIVE_PROFILE_KEY = "diet-active-profile";
 const THEME_KEY = "diet-theme";
+const MEAL_REMINDER_IDS = { meal1: 7101, meal2: 7102, meal3: 7103, snack: 7104 };
+const DEFAULT_REMINDER_TIMES = {
+  meal1: "08:00",
+  meal2: "13:00",
+  snack: "16:30",
+  meal3: "19:00"
+};
 
 const slotConfig = [
   { id: "meal1", label: "Śniadanie", category: "sniadanie" },
@@ -143,6 +150,12 @@ const ui = {
   saveSettingsBtn: document.getElementById("saveSettingsBtn"),
   resetPlannerBtn: document.getElementById("resetPlannerBtn"),
   syncLunchesBtn: document.getElementById("syncLunchesBtn"),
+  reminderMeal1Time: document.getElementById("reminderMeal1Time"),
+  reminderMeal2Time: document.getElementById("reminderMeal2Time"),
+  reminderSnackTime: document.getElementById("reminderSnackTime"),
+  reminderMeal3Time: document.getElementById("reminderMeal3Time"),
+  enableMealRemindersBtn: document.getElementById("enableMealRemindersBtn"),
+  disableMealRemindersBtn: document.getElementById("disableMealRemindersBtn"),
   saveAsNewPlanBtn: document.getElementById("saveAsNewPlanBtn"),
   newProfileName: document.getElementById("newProfileName"),
   createProfileBtn: document.getElementById("createProfileBtn"),
@@ -191,15 +204,20 @@ async function init() {
 }
 
 async function initSupabase() {
-  try {
-    const res = await fetch("/api/runtime-config");
-    if (!res.ok) return;
-    const config = await res.json();
-    if (!config.supabaseUrl || !config.supabaseAnonKey) return;
-    supabase = createClient(config.supabaseUrl, config.supabaseAnonKey);
-  } catch {
-    supabase = null;
+  const sources = ["runtime-config.json", "/api/runtime-config"];
+  for (const source of sources) {
+    try {
+      const res = await fetch(source, { cache: "no-store" });
+      if (!res.ok) continue;
+      const config = await res.json();
+      if (!config.supabaseUrl || !config.supabaseAnonKey) continue;
+      supabase = createClient(config.supabaseUrl, config.supabaseAnonKey);
+      return;
+    } catch {
+      // Try the next source.
+    }
   }
+  supabase = null;
 }
 
 async function restoreSessionAndBootstrap() {
@@ -293,6 +311,14 @@ async function pullRemoteState() {
 
   const profile = await loadRemoteProfileSettings();
   if (profile) localStorage.setItem(settingsKey(), JSON.stringify(profile));
+  if (profile?.mealChecks && typeof profile.mealChecks === "object") {
+    localStorage.setItem(mealChecksKey(), JSON.stringify(profile.mealChecks));
+  } else {
+    const localChecks = getMealChecksState();
+    if (Object.keys(localChecks).length) {
+      await saveSettingsRemote(Number(loadProfileSettings().targetKcal || getTargetKcal()), currentProfile);
+    }
+  }
 
   const planner = await loadRemotePlannerEntries();
   if (planner) {
@@ -329,21 +355,50 @@ async function ensureUserProfile(profileId = currentProfile) {
     profile_id: profileId,
     target_kcal: Number(loadProfileSettings().targetKcal || planData.targetKcal || 2100),
     theme: document.body.dataset.theme || "dark",
+    meal_checks: getMealChecksState(),
+    reminder_times: normalizeReminderTimes(loadProfileSettings().reminderTimes),
     updated_at: new Date().toISOString()
   };
-  await supabase.from("profiles").upsert(payload, { onConflict: "user_id,profile_id" });
+  const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id,profile_id" });
+  if (!error) return;
+  // Fallback for older schema without meal_checks/reminder_times columns.
+  await supabase.from("profiles").upsert({
+    user_id: authUser.id,
+    profile_id: profileId,
+    target_kcal: payload.target_kcal,
+    theme: payload.theme,
+    updated_at: payload.updated_at
+  }, { onConflict: "user_id,profile_id" });
 }
 
 async function loadRemoteProfileSettings() {
-  const { data } = await supabase
+  let data = null;
+  let fullError = null;
+  const full = await supabase
     .from("profiles")
-    .select("target_kcal,theme")
+    .select("target_kcal,theme,meal_checks,reminder_times")
     .eq("user_id", authUser.id)
     .eq("profile_id", currentProfile)
     .maybeSingle();
+  data = full.data || null;
+  fullError = full.error;
+  if (fullError) {
+    const legacy = await supabase
+      .from("profiles")
+      .select("target_kcal,theme")
+      .eq("user_id", authUser.id)
+      .eq("profile_id", currentProfile)
+      .maybeSingle();
+    data = legacy.data || null;
+  }
   if (!data) return null;
   if (data.theme) applyTheme(data.theme);
-  return { targetKcal: data.target_kcal, updatedAt: new Date().toISOString() };
+  return {
+    targetKcal: data.target_kcal,
+    reminderTimes: normalizeReminderTimes(data.reminder_times),
+    mealChecks: data.meal_checks && typeof data.meal_checks === "object" ? data.meal_checks : {},
+    updatedAt: new Date().toISOString()
+  };
 }
 
 async function loadRemotePlannerEntries() {
@@ -388,12 +443,23 @@ async function savePlannerEntryRemote(week, day, entry, profileId = currentProfi
 async function saveSettingsRemote(targetKcal, profileId = currentProfile) {
   if (!supabase || !authUser || !profileId) return;
   await ensureUserProfile(profileId);
-  await supabase.from("profiles").upsert({
+  const payload = {
     user_id: authUser.id,
     profile_id: profileId,
     target_kcal: targetKcal,
     theme: document.body.dataset.theme || "dark",
+    meal_checks: getMealChecksState(),
+    reminder_times: normalizeReminderTimes(loadProfileSettings().reminderTimes),
     updated_at: new Date().toISOString()
+  };
+  const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id,profile_id" });
+  if (!error) return;
+  await supabase.from("profiles").upsert({
+    user_id: payload.user_id,
+    profile_id: payload.profile_id,
+    target_kcal: payload.target_kcal,
+    theme: payload.theme,
+    updated_at: payload.updated_at
   }, { onConflict: "user_id,profile_id" });
 }
 
@@ -551,6 +617,8 @@ function bindEvents() {
   ui.saveSettingsBtn.addEventListener("click", saveSettings);
   ui.resetPlannerBtn.addEventListener("click", resetPlannerForCurrentProfile);
   ui.syncLunchesBtn?.addEventListener("click", syncLunchesBetweenProfiles);
+  ui.enableMealRemindersBtn?.addEventListener("click", enableMealReminders);
+  ui.disableMealRemindersBtn?.addEventListener("click", disableMealReminders);
   ui.createProfileBtn.addEventListener("click", createProfileFromInput);
   ui.saveAsNewPlanBtn.addEventListener("click", saveAsNewPlan);
   ui.addRecipeBtn.addEventListener("click", addRecipeFromForm);
@@ -771,6 +839,9 @@ function metricsKey() {
 function settingsKey() {
   return `${APP_KEY}:${currentProfile}:settings`;
 }
+function mealChecksKey() {
+  return `${APP_KEY}:${currentProfile}:meal-checks`;
+}
 
 function getPlannerState() {
   try {
@@ -793,6 +864,37 @@ function getPlannerStateForProfile(profileId) {
 
 function setPlannerStateForProfile(profileId, data) {
   localStorage.setItem(plannerKeyForProfile(profileId), JSON.stringify(data));
+}
+
+function getMealChecksState() {
+  try {
+    return JSON.parse(localStorage.getItem(mealChecksKey()) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function setMealChecksState(data) {
+  localStorage.setItem(mealChecksKey(), JSON.stringify(data));
+}
+
+function normalizeReminderTimes(raw) {
+  const fromRaw = (raw && typeof raw === "object") ? raw : {};
+  const normalized = {};
+  for (const key of Object.keys(DEFAULT_REMINDER_TIMES)) {
+    const value = String(fromRaw[key] || DEFAULT_REMINDER_TIMES[key]);
+    normalized[key] = /^\d{2}:\d{2}$/.test(value) ? value : DEFAULT_REMINDER_TIMES[key];
+  }
+  return normalized;
+}
+
+function getReminderTimesFromUi() {
+  return normalizeReminderTimes({
+    meal1: ui.reminderMeal1Time?.value,
+    meal2: ui.reminderMeal2Time?.value,
+    snack: ui.reminderSnackTime?.value,
+    meal3: ui.reminderMeal3Time?.value
+  });
 }
 
 async function loadDefaultPlanForProfile(profileId) {
@@ -852,8 +954,53 @@ async function syncLunchesBetweenProfiles() {
   alert(`Zsynchronizowano obiady z ${source} -> ${target}.`);
 }
 
+function getLocalNotificationsPlugin() {
+  return window.Capacitor?.Plugins?.LocalNotifications || null;
+}
+
+async function enableMealReminders() {
+  const plugin = getLocalNotificationsPlugin();
+  if (!plugin) {
+    alert("Powiadomienia lokalne są dostępne w aplikacji iOS/Android (nie w samej przeglądarce).");
+    return;
+  }
+  const perm = await plugin.requestPermissions();
+  const granted = perm?.display === "granted" || perm?.receive === "granted";
+  if (!granted) {
+    alert("Brak zgody na powiadomienia. Włącz je w ustawieniach iPhone.");
+    return;
+  }
+
+  await plugin.cancel({ notifications: Object.values(MEAL_REMINDER_IDS).map((id) => ({ id })) });
+  const reminderTimes = normalizeReminderTimes(loadProfileSettings().reminderTimes);
+  const notifications = slotConfig.map((slot) => {
+    const [hourRaw, minuteRaw] = String(reminderTimes[slot.id] || "12:00").split(":");
+    const hour = Number(hourRaw);
+    const minute = Number(minuteRaw);
+    return {
+      id: MEAL_REMINDER_IDS[slot.id],
+      title: "Zacznij od zdrowia",
+      body: `Czas na: ${slot.label}`,
+      schedule: {
+        repeats: true,
+        on: { hour: Number.isFinite(hour) ? hour : 12, minute: Number.isFinite(minute) ? minute : 0 }
+      }
+    };
+  });
+  await plugin.schedule({ notifications });
+  alert("Włączono codzienne przypomnienia o posiłkach.");
+}
+
+async function disableMealReminders() {
+  const plugin = getLocalNotificationsPlugin();
+  if (!plugin) return;
+  await plugin.cancel({ notifications: Object.values(MEAL_REMINDER_IDS).map((id) => ({ id })) });
+  alert("Wyłączono przypomnienia.");
+}
+
 function renderPlanner() {
   const state = getPlannerState();
+  const checks = getMealChecksState();
   const dayKey = `${selectedWeek}-${selectedDay}`;
 
   if (!state[dayKey]) {
@@ -866,6 +1013,7 @@ function renderPlanner() {
     };
     setPlannerState(state);
   }
+  if (!checks[dayKey]) checks[dayKey] = {};
 
   const selected = state[dayKey];
 
@@ -882,13 +1030,20 @@ function renderPlanner() {
     ].join("");
 
     const chosen = recipesById[selected[slot.id]];
+    const isEaten = Boolean(checks[dayKey]?.[slot.id]);
     const meta = chosen ? `<a href="#recipe-${chosen.id}">${escapeHtml(chosen.title)}</a> - ${chosen.kcal} kcal` : "Brak wybranego przepisu";
 
     return `
-      <div class="slot-card">
+      <div class="slot-card ${isEaten ? "is-eaten" : ""}">
         <p class="slot-title">${slot.label}</p>
         <select data-slot="${slot.id}">${options}</select>
         <p class="slot-meta">${meta}</p>
+        <div class="slot-actions">
+          <label>
+            <input type="checkbox" data-eaten-slot="${slot.id}" ${isEaten ? "checked" : ""} />
+            Zjedzone
+          </label>
+        </div>
       </div>
     `;
   }).join("");
@@ -900,6 +1055,17 @@ function renderPlanner() {
       await savePlannerEntryRemote(selectedWeek, selectedDay, state[dayKey]);
       renderPlanner();
       renderPlanTables();
+    });
+  });
+  ui.slotWrap.querySelectorAll('input[data-eaten-slot]').forEach((el) => {
+    el.addEventListener("change", async () => {
+      if (!checks[dayKey]) checks[dayKey] = {};
+      checks[dayKey][el.dataset.eatenSlot] = el.checked;
+      setMealChecksState(checks);
+      if (supabase && authUser) {
+        await saveSettingsRemote(Number(loadProfileSettings().targetKcal || getTargetKcal()), currentProfile);
+      }
+      renderPlanner();
     });
   });
 
@@ -2274,6 +2440,11 @@ function loadProfileSettings() {
 function fillSettingsFromState() {
   const settings = loadProfileSettings();
   ui.targetKcalInput.value = settings.targetKcal || planData.targetKcal || 2100;
+  const reminders = normalizeReminderTimes(settings.reminderTimes);
+  if (ui.reminderMeal1Time) ui.reminderMeal1Time.value = reminders.meal1;
+  if (ui.reminderMeal2Time) ui.reminderMeal2Time.value = reminders.meal2;
+  if (ui.reminderSnackTime) ui.reminderSnackTime.value = reminders.snack;
+  if (ui.reminderMeal3Time) ui.reminderMeal3Time.value = reminders.meal3;
   ui.themeSelect.value = document.body.dataset.theme || "dark";
 }
 
@@ -2286,6 +2457,7 @@ async function saveSettings() {
 
   const settings = {
     targetKcal,
+    reminderTimes: getReminderTimesFromUi(),
     updatedAt: new Date().toISOString()
   };
   localStorage.setItem(settingsKey(), JSON.stringify(settings));

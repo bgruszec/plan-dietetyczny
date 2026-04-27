@@ -298,6 +298,32 @@ textarea {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+.slot-actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.slot-actions label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.slot-actions input[type="checkbox"] {
+  min-height: 18px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+.slot-card.is-eaten .slot-title,
+.slot-card.is-eaten .slot-meta {
+  opacity: 0.75;
+}
+.slot-card.is-eaten .slot-meta {
+  text-decoration: line-through;
+}
 .recipe-card {
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -345,6 +371,9 @@ textarea {
 .ingredient-swap { display: grid; gap: 6px; max-width: 360px; }
 .swap-info { color: var(--muted); font-size: 12px; }
 .settings-note { color: var(--muted); margin: 0; }
+.reminder-grid {
+  margin-top: 10px;
+}
 
 .metrics-progress {
   margin-top: 16px;

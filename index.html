@@ -220,12 +220,29 @@
             <input id="targetKcalInput" type="number" min="1000" max="6000" step="10" />
           </label>
         </div>
+        <div class="grid reminder-grid">
+          <label>Przypomnienie: Śniadanie
+            <input id="reminderMeal1Time" type="time" value="08:00" />
+          </label>
+          <label>Przypomnienie: Obiad
+            <input id="reminderMeal2Time" type="time" value="13:00" />
+          </label>
+          <label>Przypomnienie: Przekąska
+            <input id="reminderSnackTime" type="time" value="16:30" />
+          </label>
+          <label>Przypomnienie: Kolacja
+            <input id="reminderMeal3Time" type="time" value="19:00" />
+          </label>
+        </div>
         <div class="row">
           <button id="saveSettingsBtn" class="btn">Zapisz ustawienia</button>
           <button id="resetPlannerBtn" type="button">Resetuj planer</button>
           <button id="syncLunchesBtn" type="button">Synchronizuj obiady Bartek/Paulina</button>
+          <button id="enableMealRemindersBtn" type="button">Włącz przypomnienia o posiłkach</button>
+          <button id="disableMealRemindersBtn" type="button">Wyłącz przypomnienia</button>
         </div>
         <p class="settings-note">Ustawienia dotyczą aktualnie wybranego profilu.</p>
+        <p class="settings-note">Przypomnienia działają lokalnie na tym urządzeniu (iPhone) i wymagają zgody na powiadomienia.</p>
       </section>
     </main>
     </div>

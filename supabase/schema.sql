@@ -4,9 +4,14 @@ create table if not exists public.profiles (
   profile_id text not null,
   target_kcal integer not null default 2100,
   theme text not null default 'dark',
+  meal_checks jsonb not null default '{}'::jsonb,
+  reminder_times jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now(),
   unique (user_id, profile_id)
 );
+
+alter table public.profiles add column if not exists meal_checks jsonb not null default '{}'::jsonb;
+alter table public.profiles add column if not exists reminder_times jsonb not null default '{}'::jsonb;
 
 create table if not exists public.planner_entries (
   id bigint generated always as identity primary key,
