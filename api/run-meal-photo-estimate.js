@@ -19,7 +19,13 @@ export async function runMealPhotoEstimate(req, res) {
   }
 
   const apiKey = process.env.GEMINI_API_KEY || "";
-  const model = process.env.GEMINI_VISION_MODEL || "gemini-1.5-flash";
+  const preferredModel = String(process.env.GEMINI_VISION_MODEL || "gemini-1.5-flash").trim();
+  const modelCandidates = uniqueModels([
+    preferredModel,
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-pro-latest"
+  ]);
   if (!apiKey) {
     res.status(500).json({ error: "Brak GEMINI_API_KEY na serwerze." });
     return;
@@ -51,7 +57,6 @@ export async function runMealPhotoEstimate(req, res) {
   ].join("\n");
 
   try {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
     const payload = {
       contents: [
         {
@@ -72,19 +77,15 @@ export async function runMealPhotoEstimate(req, res) {
         responseMimeType: "application/json"
       }
     };
-
-    const r = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    if (!r.ok) {
-      const txt = await r.text();
-      console.error("[meal-photo] Gemini HTTP", r.status, String(txt).slice(0, 800));
-      res.status(502).json({ error: "Błąd zewnętrznego API (Gemini)." });
+    const modelResult = await callGeminiWithFallback(apiKey, modelCandidates, payload);
+    if (!modelResult.ok) {
+      res.status(502).json({
+        error: modelResult.message || "Błąd zewnętrznego API (Gemini).",
+        details: modelResult.details || null
+      });
       return;
     }
-    const data = await r.json();
+    const data = modelResult.data;
     const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
     const parsed = safeJson(rawText);
     const normalized = normalizeEstimate(parsed);
@@ -92,7 +93,7 @@ export async function runMealPhotoEstimate(req, res) {
       res.status(502).json({ error: "Nie udało się odczytać wyniku analizy zdjęcia." });
       return;
     }
-    res.status(200).json({ ...normalized, model });
+    res.status(200).json({ ...normalized, model: modelResult.model });
   } catch (err) {
     console.error("[meal-photo-estimate]", err);
     res.status(500).json({ error: "Wewnętrzny błąd serwera." });
@@ -138,4 +139,46 @@ function clampNumber(v, min, max) {
   const n = Number(v);
   if (!Number.isFinite(n)) return null;
   return Math.max(min, Math.min(max, Math.round(n * 10) / 10));
+}
+
+function uniqueModels(models) {
+  const out = [];
+  for (const m of models) {
+    const v = String(m || "").trim();
+    if (!v || out.includes(v)) continue;
+    out.push(v);
+  }
+  return out;
+}
+
+async function callGeminiWithFallback(apiKey, models, payload) {
+  let lastStatus = 0;
+  let lastBody = "";
+  for (const model of models) {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const r = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (r.ok) {
+      const data = await r.json();
+      return { ok: true, model, data };
+    }
+    const txt = await r.text();
+    lastStatus = r.status;
+    lastBody = String(txt || "");
+    console.error("[meal-photo] Gemini HTTP", r.status, model, lastBody.slice(0, 800));
+    // Retry with another model on unsupported/not found/server errors.
+    if ([404, 429, 500, 502, 503].includes(r.status)) continue;
+    break;
+  }
+  return {
+    ok: false,
+    message: "Błąd zewnętrznego API (Gemini).",
+    details: {
+      status: lastStatus || null,
+      body: lastBody ? lastBody.slice(0, 280) : null
+    }
+  };
 }
