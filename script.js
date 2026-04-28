@@ -330,11 +330,22 @@ function setAuthPendingState(nextPending) {
   if (ui.logoutBtn) ui.logoutBtn.disabled = nextPending;
 }
 
+async function dismissAuthKeyboard() {
+  const active = document.activeElement;
+  if (active && typeof active.blur === "function") active.blur();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+}
+
 async function restoreSessionAndBootstrap() {
   if (!supabase) {
-    await loadProfiles();
-    setAuthUi(null, "Tryb lokalny (bez logowania).", true);
-    await switchProfile(currentProfile);
+    profiles = [];
+    currentProfile = "";
+    if (ui.profileSelect) {
+      ui.profileSelect.innerHTML = "";
+      ui.profileSelect.disabled = true;
+    }
+    setAuthUi(null, "Zaloguj się, aby korzystać z aplikacji.");
+    ui.appShell.forEach((el) => el.classList.add("hidden"));
     return;
   }
   try {
@@ -389,6 +400,7 @@ async function registerUser() {
     setAuthUi(authUser, "Podaj email i hasło (min. 6 znaków).");
     return;
   }
+  await dismissAuthKeyboard();
   setAuthPendingState(true);
   setAuthUi(authUser, "Trwa rejestracja...");
   try {
@@ -424,6 +436,7 @@ async function loginUser() {
     setAuthUi(authUser, "Podaj email i hasło.");
     return;
   }
+  await dismissAuthKeyboard();
   setAuthPendingState(true);
   setAuthUi(authUser, "Trwa logowanie...");
   try {
@@ -947,6 +960,16 @@ function bindEvents() {
   ui.loginBtn.addEventListener("click", loginUser);
   ui.registerBtn.addEventListener("click", registerUser);
   ui.logoutBtn.addEventListener("click", logoutUser);
+  ui.authEmail?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    loginUser();
+  });
+  ui.authPassword?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    loginUser();
+  });
 
   ui.profileSelect.addEventListener("change", async () => {
     const id = ui.profileSelect.value;

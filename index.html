@@ -11,7 +11,7 @@
   </head>
   <body data-theme="dark">
     <div class="app-root">
-    <header class="topbar">
+    <header class="topbar app-shell">
       <div>
         <h1>Plan dietetyczny</h1>
         <p id="heroKcal" hidden></p>
@@ -22,10 +22,10 @@
       <h2>Logowanie</h2>
       <div class="grid">
         <label>Email
-          <input id="authEmail" type="email" placeholder="twoj@email.com" />
+          <input id="authEmail" type="email" placeholder="twoj@email.com" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" />
         </label>
         <label>Hasło
-          <input id="authPassword" type="password" placeholder="minimum 6 znaków" />
+          <input id="authPassword" type="password" placeholder="minimum 6 znaków" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" />
         </label>
       </div>
       <div class="row">
