@@ -910,9 +910,10 @@ function setPlannerByDate(dateInput) {
   const date = dateInput instanceof Date ? dateInput : (parseIsoDateLocal(dateInput) || new Date(dateInput));
   if (Number.isNaN(date.getTime())) return;
   activePlannerMonth = monthKey(date);
-  const dayInMonth = Math.min(Math.max(date.getDate(), 1), 28);
-  selectedWeek = Math.ceil(dayInMonth / 7);
-  selectedDay = ((dayInMonth - 1) % 7) + 1;
+  const dayInMonth = Math.max(date.getDate(), 1);
+  const planDay = ((dayInMonth - 1) % 28) + 1;
+  selectedWeek = Math.ceil(planDay / 7);
+  selectedDay = ((planDay - 1) % 7) + 1;
   if (ui.weekSelect) ui.weekSelect.value = String(selectedWeek);
   if (ui.daySelect) ui.daySelect.value = String(selectedDay);
   if (ui.shoppingWeekSelect) ui.shoppingWeekSelect.value = String(selectedWeek);
