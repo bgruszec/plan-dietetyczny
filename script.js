@@ -908,9 +908,10 @@ function setPlannerByDate(dateInput) {
   if (Number.isNaN(date.getTime())) return;
   activePlannerMonth = monthKey(date);
   const dayInMonth = Math.max(date.getDate(), 1);
-  const planDay = ((dayInMonth - 1) % 28) + 1;
-  selectedWeek = Math.ceil(planDay / 7);
-  selectedDay = ((planDay - 1) % 7) + 1;
+  selectedWeek = Math.min(4, Math.ceil(dayInMonth / 7));
+  // JS: 0=Sunday ... 6=Saturday -> app: 1=Monday ... 7=Sunday
+  const jsDay = date.getDay();
+  selectedDay = jsDay === 0 ? 7 : jsDay;
   if (ui.weekSelect) ui.weekSelect.value = String(selectedWeek);
   if (ui.daySelect) ui.daySelect.value = String(selectedDay);
   if (ui.shoppingWeekSelect) ui.shoppingWeekSelect.value = String(selectedWeek);
@@ -927,14 +928,8 @@ function isCurrentPlannerMonth() {
 
 function refreshPlannerDaySelectLabels() {
   if (!ui.daySelect) return;
-  const [yearRaw, monthRaw] = String(activePlannerMonth || "").split("-");
-  const year = Number(yearRaw);
-  const month = Number(monthRaw);
-  if (!Number.isInteger(year) || !Number.isInteger(month)) return;
   Array.from(ui.daySelect.options || []).forEach((opt, idx) => {
-    const dayInMonth = idx + 1 + (selectedWeek - 1) * 7;
-    const date = new Date(year, month - 1, dayInMonth);
-    opt.textContent = date.toLocaleDateString("pl-PL", { weekday: "long" });
+    opt.textContent = weekdayNames[idx] || `Dzień ${idx + 1}`;
   });
 }
 
