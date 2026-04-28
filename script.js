@@ -263,6 +263,9 @@ function setupAuthStateListener() {
 
 function bindRemoteSyncRefreshEvents() {
   const refreshIfSigned = async () => {
+    syncPlannerToTodayIfNeeded();
+    renderPlanner();
+    renderPlanTables();
     if (!supabase || !authUser || !currentProfile) return;
     await pullRemoteState();
   };
@@ -828,6 +831,23 @@ function monthLabel(key) {
   return date.toLocaleDateString("pl-PL", { year: "numeric", month: "long" });
 }
 
+function parseIsoDateLocal(value) {
+  const [yearRaw, monthRaw, dayRaw] = String(value || "").split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+  return new Date(year, month - 1, day);
+}
+
+function toIsoDateLocal(dateInput) {
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function plannerMonthStoragePrefix(profileId = currentProfile) {
   return `${APP_KEY}:${profileId}:planner:`;
 }
@@ -874,7 +894,7 @@ function updatePlannerDateLabel() {
 }
 
 function setPlannerByDate(dateInput) {
-  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  const date = dateInput instanceof Date ? dateInput : (parseIsoDateLocal(dateInput) || new Date(dateInput));
   if (Number.isNaN(date.getTime())) return;
   activePlannerMonth = monthKey(date);
   const dayInMonth = Math.min(Math.max(date.getDate(), 1), 28);
@@ -884,13 +904,36 @@ function setPlannerByDate(dateInput) {
   if (ui.daySelect) ui.daySelect.value = String(selectedDay);
   if (ui.shoppingWeekSelect) ui.shoppingWeekSelect.value = String(selectedWeek);
   if (ui.shoppingDaySelect) ui.shoppingDaySelect.value = String(selectedDay);
-  if (ui.plannerDate) ui.plannerDate.value = date.toISOString().slice(0, 10);
+  if (ui.plannerDate) ui.plannerDate.value = toIsoDateLocal(date);
   refreshPlannerMonthSelect();
+  refreshPlannerDaySelectLabels();
   updatePlannerDateLabel();
 }
 
 function isCurrentPlannerMonth() {
   return activePlannerMonth === monthKey(new Date());
+}
+
+function refreshPlannerDaySelectLabels() {
+  if (!ui.daySelect) return;
+  const [yearRaw, monthRaw] = String(activePlannerMonth || "").split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  if (!Number.isInteger(year) || !Number.isInteger(month)) return;
+  Array.from(ui.daySelect.options || []).forEach((opt, idx) => {
+    const dayInMonth = idx + 1 + (selectedWeek - 1) * 7;
+    const date = new Date(year, month - 1, dayInMonth);
+    opt.textContent = date.toLocaleDateString("pl-PL", { weekday: "long" });
+  });
+}
+
+function syncPlannerToTodayIfNeeded(force = false) {
+  if (!ui.plannerDate) return;
+  const todayIso = toIsoDateLocal(new Date());
+  const selectedIso = ui.plannerDate.value || "";
+  const shouldSync = force || (isCurrentPlannerMonth() && selectedIso !== todayIso);
+  if (!shouldSync) return;
+  setPlannerByDate(todayIso);
 }
 
 function initShoppingSelectors() {
@@ -916,11 +959,12 @@ function bindEvents() {
   ui.weekSelect.addEventListener("change", () => {
     selectedWeek = Number(ui.weekSelect.value);
     if (ui.plannerDate) {
-      const baseDate = ui.plannerDate.value ? new Date(ui.plannerDate.value) : new Date();
+      const baseDate = ui.plannerDate.value ? (parseIsoDateLocal(ui.plannerDate.value) || new Date()) : new Date();
       const mappedDay = (selectedWeek - 1) * 7 + selectedDay;
       baseDate.setDate(Math.min(Math.max(mappedDay, 1), 28));
-      ui.plannerDate.value = baseDate.toISOString().slice(0, 10);
+      ui.plannerDate.value = toIsoDateLocal(baseDate);
     }
+    refreshPlannerDaySelectLabels();
     renderPlanner();
   });
 
@@ -928,11 +972,12 @@ function bindEvents() {
     selectedDay = Number(ui.daySelect.value);
     ui.shoppingDaySelect.value = ui.daySelect.value;
     if (ui.plannerDate) {
-      const baseDate = ui.plannerDate.value ? new Date(ui.plannerDate.value) : new Date();
+      const baseDate = ui.plannerDate.value ? (parseIsoDateLocal(ui.plannerDate.value) || new Date()) : new Date();
       const mappedDay = (selectedWeek - 1) * 7 + selectedDay;
       baseDate.setDate(Math.min(Math.max(mappedDay, 1), 28));
-      ui.plannerDate.value = baseDate.toISOString().slice(0, 10);
+      ui.plannerDate.value = toIsoDateLocal(baseDate);
     }
+    refreshPlannerDaySelectLabels();
     renderPlanner();
   });
   ui.weekSelect.addEventListener("change", () => {
@@ -948,6 +993,7 @@ function bindEvents() {
     const selected = String(ui.plannerMonthSelect?.value || "").trim();
     if (!selected) return;
     activePlannerMonth = selected;
+    refreshPlannerDaySelectLabels();
     updatePlannerDateLabel();
     renderPlanner();
     renderPlanTables();
@@ -1381,7 +1427,7 @@ async function syncLunchesBetweenProfiles() {
     ? bartekProfileId
     : selectedSource === "paulina"
       ? paulinaProfileId
-      : (currentLower === "paulina" ? paulinaProfileId : bartekProfileId);
+      : (currentLower === "bartek" ? paulinaProfileId : bartekProfileId);
   const target = source === bartekProfileId ? paulinaProfileId : bartekProfileId;
   if (!confirm(`Skopiować obiady (meal2) z profilu ${source} do profilu ${target} dla wszystkich 28 dni?`)) return;
 
@@ -1496,6 +1542,7 @@ async function disableMealReminders() {
 }
 
 function renderPlanner() {
+  syncPlannerToTodayIfNeeded();
   refreshPlannerMonthSelect();
   updatePlannerDateLabel();
   const state = getPlannerState();
