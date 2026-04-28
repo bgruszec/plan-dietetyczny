@@ -16,6 +16,7 @@ const REMINDER_PRESETS = {
   standard: { meal1: "08:00", meal2: "13:00", snack: "16:30", meal3: "19:00" },
   late: { meal1: "09:30", meal2: "14:30", snack: "18:00", meal3: "21:00" }
 };
+const AUTH_REQUEST_TIMEOUT_MS = 20000;
 
 const slotConfig = [
   { id: "meal1", label: "Śniadanie", category: "sniadanie" },
@@ -220,18 +221,54 @@ let authUser = null;
 let runtimeConfig = {};
 let photoMealCapturedDataUrl = "";
 let pendingPhotoMealEstimate = null;
+let authPending = false;
 
 init();
 
 async function init() {
   applyTheme(localStorage.getItem(THEME_KEY) || "dark");
   await initSupabase();
+  setupAuthStateListener();
   fillWeekDaySelectors();
   initMenu();
   bindEvents();
   initShoppingSelectors();
   await restoreSessionAndBootstrap();
+  bindRemoteSyncRefreshEvents();
   renderOnboardingIfNeeded();
+}
+
+function setupAuthStateListener() {
+  if (!supabase) return;
+  supabase.auth.onAuthStateChange((event, session) => {
+    const nextUser = session?.user || null;
+    if (event === "SIGNED_OUT") {
+      authUser = null;
+      setAuthUi(null, "Sesja wygasła. Zaloguj się ponownie.");
+      profiles = [];
+      currentProfile = "";
+      ui.profileSelect.innerHTML = "";
+      ui.profileSelect.disabled = true;
+      return;
+    }
+    if (!nextUser) return;
+    authUser = nextUser;
+    setAuthUi(authUser);
+  });
+}
+
+function bindRemoteSyncRefreshEvents() {
+  const refreshIfSigned = async () => {
+    if (!supabase || !authUser || !currentProfile) return;
+    await pullRemoteState();
+  };
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    refreshIfSigned();
+  });
+  window.addEventListener("focus", () => {
+    refreshIfSigned();
+  });
 }
 
 async function initSupabase() {
@@ -267,6 +304,25 @@ function mealPhotoEndpoint() {
   return `${cleanBase}/api/meal-photo-estimate`;
 }
 
+async function withTimeout(promise, timeoutMs, label) {
+  let timerId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timerId = setTimeout(() => reject(new Error(`${label}: przekroczono czas oczekiwania`)), timeoutMs);
+  });
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timerId);
+  }
+}
+
+function setAuthPendingState(nextPending) {
+  authPending = nextPending;
+  if (ui.loginBtn) ui.loginBtn.disabled = nextPending;
+  if (ui.registerBtn) ui.registerBtn.disabled = nextPending;
+  if (ui.logoutBtn) ui.logoutBtn.disabled = nextPending;
+}
+
 async function restoreSessionAndBootstrap() {
   if (!supabase) {
     await loadProfiles();
@@ -274,19 +330,26 @@ async function restoreSessionAndBootstrap() {
     await switchProfile(currentProfile);
     return;
   }
+  try {
+    const { data } = await supabase.auth.getSession();
+    authUser = data.session?.user || null;
+    setAuthUi(authUser);
 
-  const { data } = await supabase.auth.getSession();
-  authUser = data.session?.user || null;
-  setAuthUi(authUser);
-
-  if (authUser) {
-    await loadProfiles();
-    if (!currentProfile) return;
-    await switchProfile(currentProfile);
-    await pullRemoteState();
-    return;
+    if (authUser) {
+      try {
+        await withTimeout(loadProfiles(), AUTH_REQUEST_TIMEOUT_MS, "Pobieranie profili");
+        if (!currentProfile) return;
+        await withTimeout(switchProfile(currentProfile), AUTH_REQUEST_TIMEOUT_MS, "Przełączanie profilu");
+        await withTimeout(pullRemoteState(), AUTH_REQUEST_TIMEOUT_MS, "Pobieranie danych");
+      } catch (error) {
+        // Keep existing session and show the app even if initial sync failed.
+        setAuthUi(authUser, `Zalogowano, ale nie udało się wczytać części danych: ${error?.message || "nieznany błąd"}`);
+      }
+      return;
+    }
+  } catch (error) {
+    setAuthUi(authUser, `Problem z sesją: ${error?.message || "nieznany błąd"}`);
   }
-
   ui.appShell.forEach((el) => el.classList.add("hidden"));
 }
 
@@ -305,51 +368,82 @@ function setAuthUi(user, message = "", forceShowApp = false) {
 }
 
 async function registerUser() {
-  if (!supabase) return;
+  if (!supabase || authPending) return;
   const email = ui.authEmail.value.trim();
   const password = ui.authPassword.value.trim();
   if (!email || password.length < 6) {
     setAuthUi(authUser, "Podaj email i hasło (min. 6 znaków).");
     return;
   }
-  const { error } = await supabase.auth.signUp({ email, password });
-  if (error) {
-    setAuthUi(authUser, `Błąd rejestracji: ${error.message}`);
-    return;
+  setAuthPendingState(true);
+  setAuthUi(authUser, "Trwa rejestracja...");
+  try {
+    const { error } = await withTimeout(
+      supabase.auth.signUp({ email, password }),
+      AUTH_REQUEST_TIMEOUT_MS,
+      "Rejestracja"
+    );
+    if (error) {
+      setAuthUi(authUser, `Błąd rejestracji: ${error.message}`);
+      return;
+    }
+    setAuthUi(authUser, "Konto utworzone. Sprawdź mail i zaloguj się.");
+  } catch (error) {
+    setAuthUi(authUser, `Błąd rejestracji: ${error?.message || "nieznany błąd"}`);
+  } finally {
+    setAuthPendingState(false);
   }
-  setAuthUi(authUser, "Konto utworzone. Sprawdź mail i zaloguj się.");
 }
 
 async function loginUser() {
-  if (!supabase) return;
+  if (!supabase || authPending) return;
   const email = ui.authEmail.value.trim();
   const password = ui.authPassword.value.trim();
   if (!email || !password) {
     setAuthUi(authUser, "Podaj email i hasło.");
     return;
   }
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    setAuthUi(authUser, `Błąd logowania: ${error.message}`);
-    return;
+  setAuthPendingState(true);
+  setAuthUi(authUser, "Trwa logowanie...");
+  try {
+    const { data, error } = await withTimeout(
+      supabase.auth.signInWithPassword({ email, password }),
+      AUTH_REQUEST_TIMEOUT_MS,
+      "Logowanie"
+    );
+    if (error) {
+      setAuthUi(authUser, `Błąd logowania: ${error.message}`);
+      return;
+    }
+    authUser = data.session?.user ?? data.user ?? null;
+    setAuthUi(authUser, "Zalogowano.");
+    await withTimeout(loadProfiles(), AUTH_REQUEST_TIMEOUT_MS, "Pobieranie profili");
+    if (!currentProfile) return;
+    await withTimeout(switchProfile(currentProfile), AUTH_REQUEST_TIMEOUT_MS, "Przełączanie profilu");
+    await withTimeout(pullRemoteState(), AUTH_REQUEST_TIMEOUT_MS, "Pobieranie danych");
+  } catch (error) {
+    setAuthUi(authUser, `Błąd logowania: ${error?.message || "nieznany błąd"}`);
+  } finally {
+    setAuthPendingState(false);
   }
-  authUser = data.session?.user ?? data.user ?? null;
-  setAuthUi(authUser, "Zalogowano.");
-  await loadProfiles();
-  if (!currentProfile) return;
-  await switchProfile(currentProfile);
-  await pullRemoteState();
 }
 
 async function logoutUser() {
-  if (!supabase) return;
-  await supabase.auth.signOut();
-  authUser = null;
-  setAuthUi(null, "Wylogowano.");
-  profiles = [];
-  currentProfile = "";
-  ui.profileSelect.innerHTML = "";
-  ui.profileSelect.disabled = true;
+  if (!supabase || authPending) return;
+  setAuthPendingState(true);
+  try {
+    await withTimeout(supabase.auth.signOut(), AUTH_REQUEST_TIMEOUT_MS, "Wylogowanie");
+    authUser = null;
+    setAuthUi(null, "Wylogowano.");
+    profiles = [];
+    currentProfile = "";
+    ui.profileSelect.innerHTML = "";
+    ui.profileSelect.disabled = true;
+  } catch (error) {
+    setAuthUi(authUser, `Błąd wylogowania: ${error?.message || "nieznany błąd"}`);
+  } finally {
+    setAuthPendingState(false);
+  }
 }
 
 async function pullRemoteState() {
@@ -360,11 +454,6 @@ async function pullRemoteState() {
   if (profile) localStorage.setItem(settingsKey(), JSON.stringify(profile));
   if (profile?.mealChecks && typeof profile.mealChecks === "object") {
     localStorage.setItem(mealChecksKey(), JSON.stringify(profile.mealChecks));
-  } else {
-    const localChecks = getMealChecksState();
-    if (Object.keys(localChecks).length) {
-      await saveSettingsRemote(Number(loadProfileSettings().targetKcal || getTargetKcal()), currentProfile);
-    }
   }
 
   const planner = await loadRemotePlannerEntries();
@@ -500,6 +589,28 @@ async function saveSettingsRemote(targetKcal, profileId = currentProfile) {
     user_id: authUser.id,
     profile_id: profileId,
     target_kcal: targetKcal,
+    theme: document.body.dataset.theme || "dark",
+    meal_checks: getMealChecksState(),
+    reminder_times: normalizeReminderTimes(loadProfileSettings().reminderTimes),
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id,profile_id" });
+  if (!error) return;
+  await supabase.from("profiles").upsert({
+    user_id: payload.user_id,
+    profile_id: payload.profile_id,
+    target_kcal: payload.target_kcal,
+    theme: payload.theme,
+    updated_at: payload.updated_at
+  }, { onConflict: "user_id,profile_id" });
+}
+
+async function saveMealChecksRemote(profileId = currentProfile) {
+  if (!supabase || !authUser || !profileId) return;
+  const payload = {
+    user_id: authUser.id,
+    profile_id: profileId,
+    target_kcal: Number(loadProfileSettings().targetKcal || getTargetKcal()),
     theme: document.body.dataset.theme || "dark",
     meal_checks: getMealChecksState(),
     reminder_times: normalizeReminderTimes(loadProfileSettings().reminderTimes),
@@ -1267,7 +1378,7 @@ function renderPlanner() {
       checks[dayKey][el.dataset.eatenSlot] = el.checked;
       setMealChecksState(checks);
       if (supabase && authUser) {
-        await saveSettingsRemote(Number(loadProfileSettings().targetKcal || getTargetKcal()), currentProfile);
+        await saveMealChecksRemote(currentProfile);
       }
       renderPlanner();
     });
@@ -1454,7 +1565,7 @@ function renderPlanTables() {
       checks[key][slotId] = el.checked;
       setMealChecksState(checks);
       if (supabase && authUser) {
-        await saveSettingsRemote(Number(loadProfileSettings().targetKcal || getTargetKcal()), currentProfile);
+        await saveMealChecksRemote(currentProfile);
       }
       renderPlanTables();
       if (selectedWeek === week && selectedDay === day) renderPlanner();
