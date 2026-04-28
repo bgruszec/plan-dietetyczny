@@ -100,9 +100,16 @@
       <section class="card app-section" id="section-planner">
         <h2>Planer</h2>
         <div class="grid">
+          <label>Data
+            <input id="plannerDate" type="date" />
+          </label>
+          <label>Miesiąc (archiwum)
+            <select id="plannerMonthSelect"></select>
+          </label>
           <label>Tydzień <select id="weekSelect"></select></label>
           <label>Dzień <select id="daySelect"></select></label>
         </div>
+        <p class="settings-note" id="plannerDateLabel">Dzisiaj: -</p>
         <div class="row">
           <button id="copyDayBtn" type="button">Kopiuj ten dzień na inny</button>
           <button id="autoPlanBtn" class="btn" type="button">Ułóż plan auto (28 dni)</button>

@@ -115,6 +115,9 @@ const ui = {
   },
   weekSelect: document.getElementById("weekSelect"),
   daySelect: document.getElementById("daySelect"),
+  plannerDate: document.getElementById("plannerDate"),
+  plannerMonthSelect: document.getElementById("plannerMonthSelect"),
+  plannerDateLabel: document.getElementById("plannerDateLabel"),
   weekFilter: document.getElementById("weekFilter"),
   slotWrap: document.getElementById("slotWrap"),
   dayKcal: document.getElementById("dayKcal"),
@@ -215,6 +218,7 @@ let recipesById = {};
 let planData = { targetKcal: 2100, defaultPlan: { "1": [], "2": [], "3": [], "4": [] } };
 let selectedWeek = 1;
 let selectedDay = 1;
+let activePlannerMonth = monthKey(new Date());
 let pendingRecipePatch = null;
 let supabase = null;
 let authUser = null;
@@ -368,7 +372,14 @@ function setAuthUi(user, message = "", forceShowApp = false) {
 }
 
 async function registerUser() {
-  if (!supabase || authPending) return;
+  if (!supabase) {
+    setAuthUi(authUser, "Logowanie jest niedostępne: brak konfiguracji Supabase.");
+    return;
+  }
+  if (authPending) {
+    setAuthUi(authUser, "Trwa poprzednia operacja logowania/rejestracji...");
+    return;
+  }
   const email = ui.authEmail.value.trim();
   const password = ui.authPassword.value.trim();
   if (!email || password.length < 6) {
@@ -396,7 +407,14 @@ async function registerUser() {
 }
 
 async function loginUser() {
-  if (!supabase || authPending) return;
+  if (!supabase) {
+    setAuthUi(authUser, "Logowanie jest niedostępne: brak konfiguracji Supabase.");
+    return;
+  }
+  if (authPending) {
+    setAuthUi(authUser, "Trwa poprzednia operacja logowania/rejestracji...");
+    return;
+  }
   const email = ui.authEmail.value.trim();
   const password = ui.authPassword.value.trim();
   if (!email || !password) {
@@ -429,7 +447,14 @@ async function loginUser() {
 }
 
 async function logoutUser() {
-  if (!supabase || authPending) return;
+  if (!supabase) {
+    setAuthUi(authUser, "Wylogowanie niedostępne: brak konfiguracji Supabase.");
+    return;
+  }
+  if (authPending) {
+    setAuthUi(authUser, "Trwa poprzednia operacja. Spróbuj ponownie za chwilę.");
+    return;
+  }
   setAuthPendingState(true);
   try {
     await withTimeout(supabase.auth.signOut(), AUTH_REQUEST_TIMEOUT_MS, "Wylogowanie");
@@ -447,6 +472,7 @@ async function logoutUser() {
 }
 
 async function pullRemoteState() {
+  if (!isCurrentPlannerMonth()) return;
   if (!supabase || !authUser || !currentProfile) return;
   await ensureUserProfile();
 
@@ -568,6 +594,7 @@ async function loadRemoteMetricsEntries() {
 }
 
 async function savePlannerEntryRemote(week, day, entry, profileId = currentProfile) {
+  if (!isCurrentPlannerMonth()) return;
   if (!supabase || !authUser || !profileId) return;
   await supabase.from("planner_entries").upsert({
     user_id: authUser.id,
@@ -583,6 +610,7 @@ async function savePlannerEntryRemote(week, day, entry, profileId = currentProfi
 }
 
 async function saveSettingsRemote(targetKcal, profileId = currentProfile) {
+  if (!isCurrentPlannerMonth()) return;
   if (!supabase || !authUser || !profileId) return;
   await ensureUserProfile(profileId);
   const payload = {
@@ -606,6 +634,7 @@ async function saveSettingsRemote(targetKcal, profileId = currentProfile) {
 }
 
 async function saveMealChecksRemote(profileId = currentProfile) {
+  if (!isCurrentPlannerMonth()) return;
   if (!supabase || !authUser || !profileId) return;
   const payload = {
     user_id: authUser.id,
@@ -783,6 +812,87 @@ function fillWeekDaySelectors() {
   }
 }
 
+function monthKey(dateInput) {
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function monthLabel(key) {
+  const [yearRaw, monthRaw] = String(key || "").split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return key || "-";
+  const date = new Date(year, month - 1, 1);
+  return date.toLocaleDateString("pl-PL", { year: "numeric", month: "long" });
+}
+
+function plannerMonthStoragePrefix(profileId = currentProfile) {
+  return `${APP_KEY}:${profileId}:planner:`;
+}
+
+function availablePlannerMonths(profileId = currentProfile) {
+  const prefix = plannerMonthStoragePrefix(profileId);
+  const months = new Set([monthKey(new Date())]);
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith(prefix)) continue;
+    const month = k.slice(prefix.length).trim();
+    if (/^\d{4}-\d{2}$/.test(month)) months.add(month);
+  }
+  return Array.from(months).sort();
+}
+
+function ensureActivePlannerMonth() {
+  const current = monthKey(new Date());
+  if (!activePlannerMonth || !/^\d{4}-\d{2}$/.test(activePlannerMonth)) {
+    activePlannerMonth = current;
+  }
+}
+
+function refreshPlannerMonthSelect() {
+  if (!ui.plannerMonthSelect) return;
+  ensureActivePlannerMonth();
+  const options = availablePlannerMonths()
+    .map((key) => `<option value="${key}">${escapeHtml(monthLabel(key))}</option>`)
+    .join("");
+  ui.plannerMonthSelect.innerHTML = options;
+  if (!Array.from(ui.plannerMonthSelect.options).some((opt) => opt.value === activePlannerMonth)) {
+    activePlannerMonth = monthKey(new Date());
+    ui.plannerMonthSelect.innerHTML += `<option value="${activePlannerMonth}">${escapeHtml(monthLabel(activePlannerMonth))}</option>`;
+  }
+  ui.plannerMonthSelect.value = activePlannerMonth;
+}
+
+function updatePlannerDateLabel() {
+  if (!ui.plannerDateLabel) return;
+  const today = new Date();
+  const todayText = today.toLocaleDateString("pl-PL", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
+  const monthText = monthLabel(activePlannerMonth);
+  ui.plannerDateLabel.textContent = `Dzisiaj: ${todayText}. Aktywny miesiąc planu: ${monthText}.`;
+}
+
+function setPlannerByDate(dateInput) {
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return;
+  activePlannerMonth = monthKey(date);
+  const dayInMonth = Math.min(Math.max(date.getDate(), 1), 28);
+  selectedWeek = Math.ceil(dayInMonth / 7);
+  selectedDay = ((dayInMonth - 1) % 7) + 1;
+  if (ui.weekSelect) ui.weekSelect.value = String(selectedWeek);
+  if (ui.daySelect) ui.daySelect.value = String(selectedDay);
+  if (ui.shoppingWeekSelect) ui.shoppingWeekSelect.value = String(selectedWeek);
+  if (ui.shoppingDaySelect) ui.shoppingDaySelect.value = String(selectedDay);
+  if (ui.plannerDate) ui.plannerDate.value = date.toISOString().slice(0, 10);
+  refreshPlannerMonthSelect();
+  updatePlannerDateLabel();
+}
+
+function isCurrentPlannerMonth() {
+  return activePlannerMonth === monthKey(new Date());
+}
+
 function initShoppingSelectors() {
   ui.shoppingWeekSelect.innerHTML = ui.weekSelect.innerHTML;
   ui.shoppingDaySelect.innerHTML = ui.daySelect.innerHTML;
@@ -805,16 +915,42 @@ function bindEvents() {
 
   ui.weekSelect.addEventListener("change", () => {
     selectedWeek = Number(ui.weekSelect.value);
+    if (ui.plannerDate) {
+      const baseDate = ui.plannerDate.value ? new Date(ui.plannerDate.value) : new Date();
+      const mappedDay = (selectedWeek - 1) * 7 + selectedDay;
+      baseDate.setDate(Math.min(Math.max(mappedDay, 1), 28));
+      ui.plannerDate.value = baseDate.toISOString().slice(0, 10);
+    }
     renderPlanner();
   });
 
   ui.daySelect.addEventListener("change", () => {
     selectedDay = Number(ui.daySelect.value);
     ui.shoppingDaySelect.value = ui.daySelect.value;
+    if (ui.plannerDate) {
+      const baseDate = ui.plannerDate.value ? new Date(ui.plannerDate.value) : new Date();
+      const mappedDay = (selectedWeek - 1) * 7 + selectedDay;
+      baseDate.setDate(Math.min(Math.max(mappedDay, 1), 28));
+      ui.plannerDate.value = baseDate.toISOString().slice(0, 10);
+    }
     renderPlanner();
   });
   ui.weekSelect.addEventListener("change", () => {
     ui.shoppingWeekSelect.value = ui.weekSelect.value;
+  });
+  ui.plannerDate?.addEventListener("change", () => {
+    if (!ui.plannerDate?.value) return;
+    setPlannerByDate(ui.plannerDate.value);
+    renderPlanner();
+    renderPlanTables();
+  });
+  ui.plannerMonthSelect?.addEventListener("change", () => {
+    const selected = String(ui.plannerMonthSelect?.value || "").trim();
+    if (!selected) return;
+    activePlannerMonth = selected;
+    updatePlannerDateLabel();
+    renderPlanner();
+    renderPlanTables();
   });
 
   ui.weekFilter.addEventListener("change", renderPlanTables);
@@ -998,16 +1134,13 @@ async function switchProfile(profileId) {
   recipes = addCategoriesFromPlan(recipes, planData.defaultPlan || {});
   recipesById = Object.fromEntries(recipes.map((r) => [r.id, r]));
 
-  selectedWeek = 1;
-  selectedDay = 1;
-  ui.weekSelect.value = "1";
-  ui.daySelect.value = "1";
+  setPlannerByDate(new Date());
   ui.weekFilter.value = "all";
 
   refreshHeroKcal();
   fillSettingsFromState();
-  ui.shoppingWeekSelect.value = "1";
-  ui.shoppingDaySelect.value = "1";
+  ui.shoppingWeekSelect.value = String(selectedWeek);
+  ui.shoppingDaySelect.value = String(selectedDay);
   ui.shoppingOutput.innerHTML = "";
   pendingRecipePatch = null;
   setConsultResponseText("");
@@ -1054,10 +1187,10 @@ function addCategoriesFromPlan(list, defaultPlan) {
 }
 
 function plannerKey() {
-  return `${APP_KEY}:${currentProfile}:planner`;
+  return `${APP_KEY}:${currentProfile}:planner:${activePlannerMonth}`;
 }
 function plannerKeyForProfile(profileId) {
-  return `${APP_KEY}:${profileId}:planner`;
+  return `${APP_KEY}:${profileId}:planner:${activePlannerMonth}`;
 }
 function metricsKey() {
   return `${APP_KEY}:${currentProfile}:metrics`;
@@ -1066,13 +1199,13 @@ function settingsKey() {
   return `${APP_KEY}:${currentProfile}:settings`;
 }
 function mealChecksKey() {
-  return `${APP_KEY}:${currentProfile}:meal-checks`;
+  return `${APP_KEY}:${currentProfile}:meal-checks:${activePlannerMonth}`;
 }
 function photoMealsKey() {
   return `${APP_KEY}:${currentProfile}:photo-meals`;
 }
 function extraMealsKey() {
-  return `${APP_KEY}:${currentProfile}:extra-meals`;
+  return `${APP_KEY}:${currentProfile}:extra-meals:${activePlannerMonth}`;
 }
 
 function getPlannerState() {
@@ -1214,6 +1347,27 @@ async function loadDefaultPlanForProfile(profileId) {
   }
 }
 
+async function loadBaseRecipesForProfile(profileId) {
+  try {
+    const res = await fetch(`plans/${profileId}/recipes.json`);
+    if (!res.ok) throw new Error("Brak przepisów");
+    return await res.json();
+  } catch {
+    const fallback = await fetch("recipes.json");
+    if (!fallback.ok) return [];
+    return await fallback.json();
+  }
+}
+
+async function loadMergedRecipesForProfile(profileId, defaultPlan = {}) {
+  const base = await loadBaseRecipesForProfile(profileId);
+  const overrides = loadRecipeOverrides();
+  const withOverrides = base.map((r) => mergeRecipeFromStored(r, overrides?.[r.id]));
+  const remote = await loadUserRecipesRemote(profileId);
+  const merged = mergeRecipesWithUserEntries(withOverrides, remote);
+  return addCategoriesFromPlan(merged, defaultPlan || {});
+}
+
 async function syncLunchesBetweenProfiles() {
   const bartekProfileId = profiles.find((p) => String(p.id || "").toLowerCase() === "bartek")?.id;
   const paulinaProfileId = profiles.find((p) => String(p.id || "").toLowerCase() === "paulina")?.id;
@@ -1235,8 +1389,15 @@ async function syncLunchesBetweenProfiles() {
     loadDefaultPlanForProfile(source),
     loadDefaultPlanForProfile(target)
   ]);
+  const [sourceRecipes, targetRecipes] = await Promise.all([
+    loadMergedRecipesForProfile(source, sourcePlan.defaultPlan || {}),
+    loadMergedRecipesForProfile(target, targetPlan.defaultPlan || {})
+  ]);
   const sourceState = getPlannerStateForProfile(source);
   const targetState = getPlannerStateForProfile(target);
+  const sourceRecipesById = Object.fromEntries(sourceRecipes.map((r) => [r.id, r]));
+  const targetRecipeIds = new Set(targetRecipes.map((r) => r.id));
+  const copiedRecipeIds = new Set();
   const writes = [];
 
   for (let week = 1; week <= 4; week++) {
@@ -1254,16 +1415,38 @@ async function syncLunchesBetweenProfiles() {
       };
       targetState[key] = next;
       if (supabase && authUser) writes.push(savePlannerEntryRemote(week, day, next, target));
+      const lunchRecipeId = String(next.meal2 || "").trim();
+      if (lunchRecipeId && !targetRecipeIds.has(lunchRecipeId) && sourceRecipesById[lunchRecipeId]) {
+        copiedRecipeIds.add(lunchRecipeId);
+      }
     }
+  }
+
+  for (const recipeId of copiedRecipeIds) {
+    const recipe = sourceRecipesById[recipeId];
+    if (!recipe) continue;
+    await upsertUserRecipeRemote({
+      id: recipe.id,
+      title: recipe.title,
+      kcal: recipe.kcal,
+      ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
+      steps: Array.isArray(recipe.steps) ? recipe.steps : [],
+      categories: Array.isArray(recipe.categories) ? recipe.categories : ["obiad"]
+    }, target);
   }
 
   setPlannerStateForProfile(target, targetState);
   if (writes.length) await Promise.all(writes);
   if (currentProfile === target) {
+    const refreshedTargetRecipes = await loadUserRecipesRemote(target);
+    recipes = mergeRecipesWithUserEntries(recipes, refreshedTargetRecipes);
+    recipesById = Object.fromEntries(recipes.map((r) => [r.id, r]));
     renderPlanner();
     renderPlanTables();
+    renderRecipes();
   }
-  alert(`Zsynchronizowano obiady z ${source} -> ${target}.`);
+  const recipesMsg = copiedRecipeIds.size ? ` Dodano też ${copiedRecipeIds.size} brakujących przepisów obiadowych.` : "";
+  alert(`Zsynchronizowano obiady z ${source} -> ${target}.${recipesMsg}`);
 }
 
 function getLocalNotificationsPlugin() {
@@ -1313,6 +1496,8 @@ async function disableMealReminders() {
 }
 
 function renderPlanner() {
+  refreshPlannerMonthSelect();
+  updatePlannerDateLabel();
   const state = getPlannerState();
   const checks = getMealChecksState();
   const extraMeals = getExtraMealsState();
