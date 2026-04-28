@@ -263,9 +263,6 @@ function setupAuthStateListener() {
 
 function bindRemoteSyncRefreshEvents() {
   const refreshIfSigned = async () => {
-    syncPlannerToTodayIfNeeded();
-    renderPlanner();
-    renderPlanTables();
     if (!supabase || !authUser || !currentProfile) return;
     await pullRemoteState();
   };
@@ -1566,7 +1563,6 @@ async function disableMealReminders() {
 }
 
 function renderPlanner() {
-  syncPlannerToTodayIfNeeded();
   refreshPlannerMonthSelect();
   updatePlannerDateLabel();
   const state = getPlannerState();
