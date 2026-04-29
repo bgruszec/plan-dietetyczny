@@ -27,6 +27,29 @@ create table if not exists public.planner_entries (
   unique (user_id, profile_id, week, day)
 );
 
+create table if not exists public.planner_entries_v2 (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  profile_id text not null,
+  date date not null,
+  meal1 text,
+  meal2 text,
+  meal3 text,
+  snack text,
+  updated_at timestamptz not null default now(),
+  unique (user_id, profile_id, date)
+);
+
+create table if not exists public.meal_checks_entries (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  profile_id text not null,
+  date date not null,
+  checks_json jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now(),
+  unique (user_id, profile_id, date)
+);
+
 create table if not exists public.metrics_entries (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -142,6 +165,8 @@ $$;
 
 alter table public.profiles enable row level security;
 alter table public.planner_entries enable row level security;
+alter table public.planner_entries_v2 enable row level security;
+alter table public.meal_checks_entries enable row level security;
 alter table public.metrics_entries enable row level security;
 alter table public.consult_history enable row level security;
 alter table public.user_profiles enable row level security;
@@ -159,6 +184,20 @@ create policy "own_profiles"
 drop policy if exists "own_planner_entries" on public.planner_entries;
 create policy "own_planner_entries"
   on public.planner_entries
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "own_planner_entries_v2" on public.planner_entries_v2;
+create policy "own_planner_entries_v2"
+  on public.planner_entries_v2
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "own_meal_checks_entries" on public.meal_checks_entries;
+create policy "own_meal_checks_entries"
+  on public.meal_checks_entries
   for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

@@ -219,6 +219,7 @@ let planData = { targetKcal: 2100, defaultPlan: { "1": [], "2": [], "3": [], "4"
 let selectedWeek = 1;
 let selectedDay = 1;
 let activePlannerMonth = monthKey(new Date());
+let selectedPlannerDate = toIsoDateLocal(new Date());
 let pendingRecipePatch = null;
 let supabase = null;
 let authUser = null;
@@ -485,25 +486,32 @@ async function logoutUser() {
 }
 
 async function pullRemoteState() {
-  if (!isCurrentPlannerMonth()) return;
   if (!supabase || !authUser || !currentProfile) return;
   await ensureUserProfile();
 
   const profile = await loadRemoteProfileSettings();
   if (profile) localStorage.setItem(settingsKey(), JSON.stringify(profile));
-  if (profile?.mealChecks && typeof profile.mealChecks === "object") {
-    localStorage.setItem(mealChecksKey(), JSON.stringify(profile.mealChecks));
+  const remoteChecks = await loadRemoteMealChecksEntries();
+  if (remoteChecks && typeof remoteChecks === "object") {
+    const normalized = Object.keys(remoteChecks).some((k) => /^\d-\d$/.test(k))
+      ? migrateLegacyPlannerMap(remoteChecks)
+      : remoteChecks;
+    localStorage.setItem(mealChecksKey(), JSON.stringify(normalized));
   }
 
   const planner = await loadRemotePlannerEntries();
   if (planner) {
-    setPlannerState(planner);
+    if (Object.keys(planner).some((k) => k.startsWith("legacy:"))) {
+      await migrateLegacyRemotePlannerEntries(planner);
+    } else {
+      setPlannerState(planner);
+    }
   } else {
     const localPlanner = getPlannerState();
     const keys = Object.keys(localPlanner);
     for (const key of keys) {
-      const [week, day] = key.split("-").map(Number);
-      await savePlannerEntryRemote(week, day, localPlanner[key]);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+      await savePlannerEntryRemote(key, localPlanner[key]);
     }
   }
 
@@ -527,6 +535,23 @@ async function pullRemoteState() {
   renderPhotoMealHistory();
   fillSettingsFromState();
   applyStickyMetricFormDefaults({ setTodayDate: false });
+}
+
+async function migrateLegacyRemotePlannerEntries(legacyMap) {
+  const next = {};
+  const month = activePlannerMonth || monthKey(new Date());
+  for (const [k, entry] of Object.entries(legacyMap || {})) {
+    const plain = String(k).replace(/^legacy:/, "");
+    const m = /^(\d)-(\d)$/.exec(plain);
+    if (!m) continue;
+    const week = Number(m[1]);
+    const day = Number(m[2]);
+    const dayInMonth = (week - 1) * 7 + day;
+    const dateIso = `${month}-${String(dayInMonth).padStart(2, "0")}`;
+    next[dateIso] = entry;
+    await savePlannerEntryRemote(dateIso, entry);
+  }
+  if (Object.keys(next).length) setPlannerState(next);
 }
 
 async function ensureUserProfile(profileId = currentProfile) {
@@ -583,17 +608,44 @@ async function loadRemoteProfileSettings() {
 }
 
 async function loadRemotePlannerEntries() {
-  const { data } = await supabase
+  const v2 = await supabase
+    .from("planner_entries_v2")
+    .select("date,meal1,meal2,meal3,snack")
+    .eq("user_id", authUser.id)
+    .eq("profile_id", currentProfile);
+  if (v2.data?.length) {
+    const mapped = {};
+    v2.data.forEach((r) => {
+      mapped[r.date] = { meal1: r.meal1 || "", meal2: r.meal2 || "", meal3: r.meal3 || "", snack: r.snack || "" };
+    });
+    return mapped;
+  }
+  const legacy = await supabase
     .from("planner_entries")
     .select("week,day,meal1,meal2,meal3,snack")
     .eq("user_id", authUser.id)
     .eq("profile_id", currentProfile);
-  if (!data?.length) return null;
+  if (!legacy.data?.length) return null;
   const mapped = {};
-  data.forEach((r) => {
-    mapped[`${r.week}-${r.day}`] = { meal1: r.meal1 || "", meal2: r.meal2 || "", meal3: r.meal3 || "", snack: r.snack || "" };
+  legacy.data.forEach((r) => {
+    mapped[`legacy:${r.week}-${r.day}`] = { meal1: r.meal1 || "", meal2: r.meal2 || "", meal3: r.meal3 || "", snack: r.snack || "" };
   });
   return mapped;
+}
+
+async function loadRemoteMealChecksEntries() {
+  const v2 = await supabase
+    .from("meal_checks_entries")
+    .select("date,checks_json")
+    .eq("user_id", authUser.id)
+    .eq("profile_id", currentProfile);
+  if (v2.data?.length) {
+    const mapped = {};
+    v2.data.forEach((r) => { mapped[r.date] = r.checks_json && typeof r.checks_json === "object" ? r.checks_json : {}; });
+    return mapped;
+  }
+  const profile = await loadRemoteProfileSettings();
+  return profile?.mealChecks && typeof profile.mealChecks === "object" ? profile.mealChecks : null;
 }
 
 async function loadRemoteMetricsEntries() {
@@ -606,24 +658,21 @@ async function loadRemoteMetricsEntries() {
   return data || null;
 }
 
-async function savePlannerEntryRemote(week, day, entry, profileId = currentProfile) {
-  if (!isCurrentPlannerMonth()) return;
+async function savePlannerEntryRemote(dateIso, entry, profileId = currentProfile) {
   if (!supabase || !authUser || !profileId) return;
-  await supabase.from("planner_entries").upsert({
+  await supabase.from("planner_entries_v2").upsert({
     user_id: authUser.id,
     profile_id: profileId,
-    week,
-    day,
+    date: dateIso,
     meal1: entry.meal1 || "",
     meal2: entry.meal2 || "",
     meal3: entry.meal3 || "",
     snack: entry.snack || "",
     updated_at: new Date().toISOString()
-  }, { onConflict: "user_id,profile_id,week,day" });
+  }, { onConflict: "user_id,profile_id,date" });
 }
 
 async function saveSettingsRemote(targetKcal, profileId = currentProfile) {
-  if (!isCurrentPlannerMonth()) return;
   if (!supabase || !authUser || !profileId) return;
   await ensureUserProfile(profileId);
   const payload = {
@@ -647,26 +696,18 @@ async function saveSettingsRemote(targetKcal, profileId = currentProfile) {
 }
 
 async function saveMealChecksRemote(profileId = currentProfile) {
-  if (!isCurrentPlannerMonth()) return;
   if (!supabase || !authUser || !profileId) return;
   const payload = {
     user_id: authUser.id,
     profile_id: profileId,
-    target_kcal: Number(loadProfileSettings().targetKcal || getTargetKcal()),
-    theme: document.body.dataset.theme || "dark",
-    meal_checks: getMealChecksState(),
-    reminder_times: normalizeReminderTimes(loadProfileSettings().reminderTimes),
+    date: plannerDateKey(),
+    checks_json: getMealChecksState()[plannerDateKey()] || {},
     updated_at: new Date().toISOString()
   };
-  const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id,profile_id" });
+  const { error } = await supabase.from("meal_checks_entries").upsert(payload, { onConflict: "user_id,profile_id,date" });
   if (!error) return;
-  await supabase.from("profiles").upsert({
-    user_id: payload.user_id,
-    profile_id: payload.profile_id,
-    target_kcal: payload.target_kcal,
-    theme: payload.theme,
-    updated_at: payload.updated_at
-  }, { onConflict: "user_id,profile_id" });
+  // Legacy fallback
+  await saveSettingsRemote(Number(loadProfileSettings().targetKcal || getTargetKcal()), profileId);
 }
 
 async function saveMetricsRemote(entry) {
@@ -859,17 +900,19 @@ function toIsoDateLocal(dateInput) {
 }
 
 function plannerMonthStoragePrefix(profileId = currentProfile) {
-  return `${APP_KEY}:${profileId}:planner:`;
+  return `${APP_KEY}:${profileId}:planner-v2`;
 }
 
 function availablePlannerMonths(profileId = currentProfile) {
-  const prefix = plannerMonthStoragePrefix(profileId);
+  const storageKey = plannerMonthStoragePrefix(profileId);
   const months = new Set([monthKey(new Date())]);
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (!k || !k.startsWith(prefix)) continue;
-    const month = k.slice(prefix.length).trim();
-    if (/^\d{4}-\d{2}$/.test(month)) months.add(month);
+  try {
+    const state = JSON.parse(localStorage.getItem(storageKey) || "{}");
+    Object.keys(state || {}).forEach((dateIso) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) months.add(dateIso.slice(0, 7));
+    });
+  } catch {
+    // noop
   }
   return Array.from(months).sort();
 }
@@ -906,6 +949,7 @@ function updatePlannerDateLabel() {
 function setPlannerByDate(dateInput) {
   const date = dateInput instanceof Date ? dateInput : (parseIsoDateLocal(dateInput) || new Date(dateInput));
   if (Number.isNaN(date.getTime())) return;
+  selectedPlannerDate = toIsoDateLocal(date);
   activePlannerMonth = monthKey(date);
   const dayInMonth = Math.max(date.getDate(), 1);
   selectedWeek = Math.min(4, Math.ceil(dayInMonth / 7));
@@ -916,7 +960,7 @@ function setPlannerByDate(dateInput) {
   if (ui.daySelect) ui.daySelect.value = String(selectedDay);
   if (ui.shoppingWeekSelect) ui.shoppingWeekSelect.value = String(selectedWeek);
   if (ui.shoppingDaySelect) ui.shoppingDaySelect.value = String(selectedDay);
-  if (ui.plannerDate) ui.plannerDate.value = toIsoDateLocal(date);
+  if (ui.plannerDate) ui.plannerDate.value = selectedPlannerDate;
   refreshPlannerMonthSelect();
   refreshPlannerDaySelectLabels();
   updatePlannerDateLabel();
@@ -940,6 +984,19 @@ function syncPlannerToTodayIfNeeded(force = false) {
   const shouldSync = force || (isCurrentPlannerMonth() && selectedIso !== todayIso);
   if (!shouldSync) return;
   setPlannerByDate(todayIso);
+}
+
+function plannerDateKey() {
+  return selectedPlannerDate || toIsoDateLocal(new Date());
+}
+
+function templateSlotForDate(dateIso) {
+  const date = parseIsoDateLocal(dateIso) || new Date(dateIso);
+  const dayInMonth = Math.max(1, date.getDate());
+  const week = Math.min(4, Math.ceil(dayInMonth / 7));
+  const jsDay = date.getDay();
+  const day = jsDay === 0 ? 7 : jsDay;
+  return { week, day };
 }
 
 function initShoppingSelectors() {
@@ -1154,8 +1211,8 @@ async function saveAsNewPlan() {
   setPlannerState(sourcePlanner || {});
   await saveSettingsRemote(Number(sourceSettings?.targetKcal || getTargetKcal()), currentProfile);
   for (const key of Object.keys(sourcePlanner || {})) {
-    const [week, day] = key.split("-").map(Number);
-    await savePlannerEntryRemote(week, day, sourcePlanner[key], currentProfile);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+    await savePlannerEntryRemote(key, sourcePlanner[key], currentProfile);
   }
   renderPlanner();
   renderPlanTables();
@@ -1172,6 +1229,7 @@ async function switchProfile(profileId) {
   }
   currentProfile = profileId;
   localStorage.setItem(ACTIVE_PROFILE_KEY, profileId);
+  migrateLegacyLocalPlannerData(profileId);
 
   try {
     const [rRes, pRes] = await Promise.all([
@@ -1249,10 +1307,10 @@ function addCategoriesFromPlan(list, defaultPlan) {
 }
 
 function plannerKey() {
-  return `${APP_KEY}:${currentProfile}:planner:${activePlannerMonth}`;
+  return `${APP_KEY}:${currentProfile}:planner-v2`;
 }
 function plannerKeyForProfile(profileId) {
-  return `${APP_KEY}:${profileId}:planner:${activePlannerMonth}`;
+  return `${APP_KEY}:${profileId}:planner-v2`;
 }
 function metricsKey() {
   return `${APP_KEY}:${currentProfile}:metrics`;
@@ -1261,18 +1319,56 @@ function settingsKey() {
   return `${APP_KEY}:${currentProfile}:settings`;
 }
 function mealChecksKey() {
-  return `${APP_KEY}:${currentProfile}:meal-checks:${activePlannerMonth}`;
+  return `${APP_KEY}:${currentProfile}:meal-checks-v2`;
 }
 function photoMealsKey() {
   return `${APP_KEY}:${currentProfile}:photo-meals`;
 }
 function extraMealsKey() {
-  return `${APP_KEY}:${currentProfile}:extra-meals:${activePlannerMonth}`;
+  return `${APP_KEY}:${currentProfile}:extra-meals-v2`;
+}
+
+function migrateLegacyLocalPlannerData(profileId = currentProfile) {
+  if (!profileId) return;
+  const migrationKey = `${APP_KEY}:${profileId}:calendar-v2-migrated`;
+  if (localStorage.getItem(migrationKey) === "1") return;
+  const plannerMerged = {};
+  const checksMerged = {};
+  const extraMerged = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    const plannerMatch = new RegExp(`^${APP_KEY}:${profileId}:planner:(\\d{4}-\\d{2})$`).exec(key);
+    const checksMatch = new RegExp(`^${APP_KEY}:${profileId}:meal-checks:(\\d{4}-\\d{2})$`).exec(key);
+    const extraMatch = new RegExp(`^${APP_KEY}:${profileId}:extra-meals:(\\d{4}-\\d{2})$`).exec(key);
+    const month = plannerMatch?.[1] || checksMatch?.[1] || extraMatch?.[1];
+    if (!month) continue;
+    let payload = {};
+    try { payload = JSON.parse(localStorage.getItem(key) || "{}"); } catch { payload = {}; }
+    const target = plannerMatch ? plannerMerged : checksMatch ? checksMerged : extraMerged;
+    Object.entries(payload || {}).forEach(([legacyKey, value]) => {
+      const m = /^(\d)-(\d)$/.exec(String(legacyKey));
+      if (!m) return;
+      const dayInMonth = (Number(m[1]) - 1) * 7 + Number(m[2]);
+      const dateIso = `${month}-${String(dayInMonth).padStart(2, "0")}`;
+      target[dateIso] = value;
+    });
+  }
+  if (Object.keys(plannerMerged).length) localStorage.setItem(`${APP_KEY}:${profileId}:planner-v2`, JSON.stringify(plannerMerged));
+  if (Object.keys(checksMerged).length) localStorage.setItem(`${APP_KEY}:${profileId}:meal-checks-v2`, JSON.stringify(checksMerged));
+  if (Object.keys(extraMerged).length) localStorage.setItem(`${APP_KEY}:${profileId}:extra-meals-v2`, JSON.stringify(extraMerged));
+  localStorage.setItem(migrationKey, "1");
 }
 
 function getPlannerState() {
   try {
-    return JSON.parse(localStorage.getItem(plannerKey()) || "{}");
+    const parsed = JSON.parse(localStorage.getItem(plannerKey()) || "{}");
+    if (Object.keys(parsed || {}).some((k) => /^\d-\d$/.test(k))) {
+      const migrated = migrateLegacyPlannerMap(parsed);
+      setPlannerState(migrated);
+      return migrated;
+    }
+    return parsed;
   } catch {
     return {};
   }
@@ -1295,7 +1391,13 @@ function setPlannerStateForProfile(profileId, data) {
 
 function getMealChecksState() {
   try {
-    return JSON.parse(localStorage.getItem(mealChecksKey()) || "{}");
+    const parsed = JSON.parse(localStorage.getItem(mealChecksKey()) || "{}");
+    if (Object.keys(parsed || {}).some((k) => /^\d-\d$/.test(k))) {
+      const migrated = migrateLegacyPlannerMap(parsed);
+      setMealChecksState(migrated);
+      return migrated;
+    }
+    return parsed;
   } catch {
     return {};
   }
@@ -1319,7 +1421,13 @@ function setPhotoMealsState(items) {
 
 function getExtraMealsState() {
   try {
-    return JSON.parse(localStorage.getItem(extraMealsKey()) || "{}");
+    const parsed = JSON.parse(localStorage.getItem(extraMealsKey()) || "{}");
+    if (Object.keys(parsed || {}).some((k) => /^\d-\d$/.test(k))) {
+      const migrated = migrateLegacyPlannerMap(parsed);
+      setExtraMealsState(migrated);
+      return migrated;
+    }
+    return parsed;
   } catch {
     return {};
   }
@@ -1399,6 +1507,33 @@ function dayCompletionForEntry(entry, checks) {
   return { done, total };
 }
 
+function defaultEntryForDate(dateIso) {
+  const slot = templateSlotForDate(dateIso);
+  const base = planData.defaultPlan?.[String(slot.week)]?.[slot.day - 1] || {};
+  return {
+    meal1: base?.meal1 || "",
+    meal2: base?.meal2 || "",
+    meal3: base?.meal3 || "",
+    snack: base?.snack || ""
+  };
+}
+
+function migrateLegacyPlannerMap(rawMap) {
+  const next = {};
+  if (!rawMap || typeof rawMap !== "object") return next;
+  const month = activePlannerMonth || monthKey(new Date());
+  Object.entries(rawMap).forEach(([k, value]) => {
+    const m = /^(\d)-(\d)$/.exec(String(k));
+    if (!m) return;
+    const week = Number(m[1]);
+    const day = Number(m[2]);
+    const dayInMonth = (week - 1) * 7 + day;
+    const dateIso = `${month}-${String(dayInMonth).padStart(2, "0")}`;
+    next[dateIso] = value;
+  });
+  return next;
+}
+
 async function loadDefaultPlanForProfile(profileId) {
   try {
     const res = await fetch(`plans/${profileId}/plan.json`);
@@ -1464,19 +1599,19 @@ async function syncLunchesBetweenProfiles() {
 
   for (let week = 1; week <= 4; week++) {
     for (let day = 1; day <= 7; day++) {
-      const key = `${week}-${day}`;
+      const dateIso = `${activePlannerMonth}-${String((week - 1) * 7 + day).padStart(2, "0")}`;
       const sourceBase = sourcePlan.defaultPlan?.[String(week)]?.[day - 1] || {};
       const targetBase = targetPlan.defaultPlan?.[String(week)]?.[day - 1] || {};
-      const sourceLocal = sourceState[key] || {};
-      const targetLocal = targetState[key] || {};
+      const sourceLocal = sourceState[dateIso] || {};
+      const targetLocal = targetState[dateIso] || {};
       const next = {
         meal1: targetLocal.meal1 ?? targetBase.meal1 ?? "",
         meal2: sourceLocal.meal2 ?? sourceBase.meal2 ?? "",
         meal3: targetLocal.meal3 ?? targetBase.meal3 ?? "",
         snack: targetLocal.snack ?? targetBase.snack ?? ""
       };
-      targetState[key] = next;
-      if (supabase && authUser) writes.push(savePlannerEntryRemote(week, day, next, target));
+      targetState[dateIso] = next;
+      if (supabase && authUser) writes.push(savePlannerEntryRemote(dateIso, next, target));
       const lunchRecipeId = String(next.meal2 || "").trim();
       if (lunchRecipeId && !targetRecipeIds.has(lunchRecipeId) && sourceRecipesById[lunchRecipeId]) {
         copiedRecipeIds.add(lunchRecipeId);
@@ -1563,16 +1698,10 @@ function renderPlanner() {
   const state = getPlannerState();
   const checks = getMealChecksState();
   const extraMeals = getExtraMealsState();
-  const dayKey = `${selectedWeek}-${selectedDay}`;
+  const dayKey = plannerDateKey();
 
   if (!state[dayKey]) {
-    const base = planData.defaultPlan?.[String(selectedWeek)]?.[selectedDay - 1];
-    state[dayKey] = {
-      meal1: base?.meal1 || "",
-      meal2: base?.meal2 || "",
-      meal3: base?.meal3 || "",
-      snack: base?.snack || ""
-    };
+    state[dayKey] = defaultEntryForDate(dayKey);
     setPlannerState(state);
   }
   if (!checks[dayKey]) checks[dayKey] = {};
@@ -1614,7 +1743,7 @@ function renderPlanner() {
     el.addEventListener("change", async () => {
       state[dayKey][el.dataset.slot] = el.value;
       setPlannerState(state);
-      await savePlannerEntryRemote(selectedWeek, selectedDay, state[dayKey]);
+      await savePlannerEntryRemote(dayKey, state[dayKey]);
       renderPlanner();
       renderPlanTables();
     });
@@ -1691,104 +1820,70 @@ function renderPlanner() {
 }
 
 async function copySelectedDayPlan() {
-  const sourceWeek = selectedWeek;
-  const sourceDay = selectedDay;
-
-  const targetWeekInput = prompt("Skopiować na który tydzień? (1-4)", String(sourceWeek));
-  if (targetWeekInput === null) return;
-  const targetWeek = Number(targetWeekInput);
-
-  const targetDayInput = prompt("Skopiować na który dzień? (1-7)", String(sourceDay));
-  if (targetDayInput === null) return;
-  const targetDay = Number(targetDayInput);
-
-  if (!Number.isInteger(targetWeek) || targetWeek < 1 || targetWeek > 4) {
-    alert("Podaj tydzień od 1 do 4.");
+  const sourceDate = plannerDateKey();
+  const targetDateInput = prompt("Skopiować na jaką datę? (YYYY-MM-DD)", sourceDate);
+  if (targetDateInput === null) return;
+  const targetDate = String(targetDateInput).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+    alert("Podaj datę w formacie YYYY-MM-DD.");
     return;
   }
-  if (!Number.isInteger(targetDay) || targetDay < 1 || targetDay > 7) {
-    alert("Podaj dzień od 1 do 7.");
-    return;
-  }
-
-  const sourceKey = `${sourceWeek}-${sourceDay}`;
-  const targetKey = `${targetWeek}-${targetDay}`;
-  if (sourceKey === targetKey) {
+  if (sourceDate === targetDate) {
     alert("Wybrano ten sam dzień - nic nie skopiowano.");
     return;
   }
 
   const state = getPlannerState();
-  const sourceEntry = state[sourceKey] || {
-    meal1: planData.defaultPlan?.[String(sourceWeek)]?.[sourceDay - 1]?.meal1 || "",
-    meal2: planData.defaultPlan?.[String(sourceWeek)]?.[sourceDay - 1]?.meal2 || "",
-    meal3: planData.defaultPlan?.[String(sourceWeek)]?.[sourceDay - 1]?.meal3 || "",
-    snack: planData.defaultPlan?.[String(sourceWeek)]?.[sourceDay - 1]?.snack || ""
-  };
-
-  state[targetKey] = { ...sourceEntry };
+  const sourceEntry = state[sourceDate] || defaultEntryForDate(sourceDate);
+  state[targetDate] = { ...sourceEntry };
   setPlannerState(state);
-  await savePlannerEntryRemote(targetWeek, targetDay, state[targetKey]);
+  await savePlannerEntryRemote(targetDate, state[targetDate]);
 
   renderPlanTables();
-  alert(`Skopiowano plan z tygodnia ${sourceWeek}, dnia ${sourceDay} na tydzień ${targetWeek}, dzień ${targetDay}.`);
+  alert(`Skopiowano plan z ${sourceDate} na ${targetDate}.`);
 }
 
 function renderPlanTables() {
   const filter = ui.weekFilter.value || "all";
-  const weeks = filter === "all" ? [1, 2, 3, 4] : [Number(filter)];
-  const dp = planData.defaultPlan || {};
   const plannerState = getPlannerState();
   const checks = getMealChecksState();
+  const baseDate = parseIsoDateLocal(plannerDateKey()) || new Date();
+  const weeks = filter === "all" ? [0, 1, 2, 3] : [Math.max(0, Number(filter) - 1)];
 
-  ui.planTables.innerHTML = weeks.map((w) => {
+  ui.planTables.innerHTML = weeks.map((weekOffset) => {
     const rows = Array.from({ length: 7 }, (_, idx) => {
-      const day = idx + 1;
-      const base = dp[String(w)]?.[idx] || {};
-      const local = plannerState[`${w}-${day}`] || {};
-
-      return {
-        day,
-        meal1: local.meal1 ?? base.meal1 ?? "",
-        meal2: local.meal2 ?? base.meal2 ?? "",
-        meal3: local.meal3 ?? base.meal3 ?? "",
-        snack: local.snack ?? base.snack ?? ""
-      };
+      const d = new Date(baseDate);
+      d.setDate(baseDate.getDate() + weekOffset * 7 + idx);
+      const dateIso = toIsoDateLocal(d);
+      const local = plannerState[dateIso] || defaultEntryForDate(dateIso);
+      return { dateIso, meal1: local.meal1 || "", meal2: local.meal2 || "", meal3: local.meal3 || "", snack: local.snack || "" };
     });
-
-    const hasAnyMeal = rows.some((row) => slotConfig.some((slot) => row[slot.id]));
-    if (!hasAnyMeal) return `<h3>Tydzień ${w}</h3><p>Brak danych planu.</p>`;
-
-    const totalForRow = (row) =>
-      slotConfig.reduce((sum, slot) => sum + (recipesById[row[slot.id]]?.kcal || 0), 0);
-
+    const totalForRow = (row) => slotConfig.reduce((sum, slot) => sum + (recipesById[row[slot.id]]?.kcal || 0), 0);
     return `
-      <h3>Tydzień ${w}</h3>
+      <h3>Tydzień ${weekOffset + 1}</h3>
       <div class="table-scroll table-scroll--responsive">
         <table class="plan-table">
           <thead>
             <tr>
-              <th>Dzień</th>
+              <th>Data</th>
               ${slotConfig.map((s) => `<th>${s.label}</th>`).join("")}
               <th>Status</th>
               <th>Suma kcal</th>
             </tr>
           </thead>
           <tbody>
-            ${rows.map((row, idx) => `
+            ${rows.map((row) => `
               <tr class="plan-row">
-                <th scope="row" class="plan-day-cell" data-label="Dzień">${weekdayNames[idx] || `Dzień ${row.day}`}</th>
+                <th scope="row" class="plan-day-cell" data-label="Data">${escapeHtml(row.dateIso)}</th>
                 ${slotConfig.map((slot) => `
                   <td class="plan-meal-cell" data-label="${slot.label}">${planRecipeCell(row[slot.id], {
-                    week: w,
-                    day: row.day,
+                    dateIso: row.dateIso,
                     slotId: slot.id,
-                    checked: Boolean(checks[`${w}-${row.day}`]?.[slot.id])
+                    checked: Boolean(checks[row.dateIso]?.[slot.id])
                   })}</td>
                 `).join("")}
                 <td class="plan-status-cell" data-label="Status">${(() => {
-                  const key = `${w}-${row.day}`;
-                  const c = dayCompletionForEntry(row, checks[key] || {});
+                  const c = dayCompletionForEntry(row, checks[row.dateIso] || {});
                   return c.total ? `${c.done}/${c.total}` : "-";
                 })()}</td>
                 <td class="plan-sum-cell" data-label="Suma kcal">${totalForRow(row) || "-"}</td>
@@ -1802,27 +1897,26 @@ function renderPlanTables() {
 
   ui.planTables.querySelectorAll('input[data-plan-eaten]').forEach((el) => {
     el.addEventListener("change", async () => {
-      const week = Number(el.dataset.week);
-      const day = Number(el.dataset.day);
+      const dateIso = String(el.dataset.dateIso || "");
       const slotId = String(el.dataset.slotId || "");
-      if (!Number.isInteger(week) || !Number.isInteger(day) || !slotId) return;
-      const key = `${week}-${day}`;
+      if (!dateIso || !slotId) return;
       const checks = getMealChecksState();
-      if (!checks[key]) checks[key] = {};
-      checks[key][slotId] = el.checked;
+      if (!checks[dateIso]) checks[dateIso] = {};
+      checks[dateIso][slotId] = el.checked;
       setMealChecksState(checks);
       if (supabase && authUser) {
         await saveMealChecksRemote(currentProfile);
       }
       renderPlanTables();
-      if (selectedWeek === week && selectedDay === day) renderPlanner();
+      if (plannerDateKey() === dateIso) renderPlanner();
     });
   });
 }
 
 function getPlannedDayEntry(week, day) {
   const state = getPlannerState();
-  const key = `${week}-${day}`;
+  const dayInMonth = (week - 1) * 7 + day;
+  const key = `${activePlannerMonth}-${String(dayInMonth).padStart(2, "0")}`;
   const base = planData.defaultPlan?.[String(week)]?.[day - 1] || {};
   const local = state[key] || {};
   return {
@@ -2314,7 +2408,7 @@ async function autoFillFullPlan() {
 
   for (let week = 1; week <= 4; week++) {
     for (let day = 1; day <= 7; day++) {
-      const key = `${week}-${day}`;
+      const key = `${activePlannerMonth}-${String((week - 1) * 7 + day).padStart(2, "0")}`;
       const row = { meal1: "", meal2: "", meal3: "", snack: "" };
       let remaining = target;
 
@@ -2346,8 +2440,9 @@ async function autoFillFullPlan() {
   const saves = [];
   for (let week = 1; week <= 4; week++) {
     for (let day = 1; day <= 7; day++) {
-      const key = `${week}-${day}`;
-      saves.push(savePlannerEntryRemote(week, day, state[key]));
+      const key = `${activePlannerMonth}-${String((week - 1) * 7 + day).padStart(2, "0")}`;
+      const dateIso = `${activePlannerMonth}-${String((week - 1) * 7 + day).padStart(2, "0")}`;
+      saves.push(savePlannerEntryRemote(dateIso, state[key]));
     }
   }
   try {
@@ -2625,18 +2720,17 @@ async function addRecipeFromForm() {
 function planRecipeCell(id, options = {}) {
   const r = recipesById[id];
   if (!r) return id || "-";
-  const week = Number(options.week);
-  const day = Number(options.day);
+  const dateIso = String(options.dateIso || "");
   const slotId = String(options.slotId || "");
   const checked = Boolean(options.checked);
-  if (!Number.isInteger(week) || !Number.isInteger(day) || !slotId) {
+  if (!dateIso || !slotId) {
     return `<a href="#recipe-${r.id}">${escapeHtml(r.title)}</a>`;
   }
   return `
     <div class="plan-meal-entry">
       <a href="#recipe-${r.id}">${escapeHtml(r.title)}</a>
       <label class="plan-eaten-toggle">
-        <input type="checkbox" data-plan-eaten="1" data-week="${week}" data-day="${day}" data-slot-id="${slotId}" ${checked ? "checked" : ""} />
+        <input type="checkbox" data-plan-eaten="1" data-date-iso="${dateIso}" data-slot-id="${slotId}" ${checked ? "checked" : ""} />
         zjedzone
       </label>
     </div>
@@ -2767,7 +2861,7 @@ function addPhotoMealToSelectedDayAsEaten() {
     alert("Najpierw przeanalizuj zdjęcie, aby dodać wpis do dnia.");
     return;
   }
-  const dayKey = `${selectedWeek}-${selectedDay}`;
+  const dayKey = plannerDateKey();
   const next = getExtraMealsState();
   const list = Array.isArray(next[dayKey]) ? next[dayKey] : [];
   const name = String(ui.photoMealName?.value?.trim() || source.name || "Posiłek spoza planu");
