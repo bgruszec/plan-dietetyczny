@@ -2099,6 +2099,52 @@ function normalizeShoppingText(s) {
     .replace(/\p{M}/gu, "");
 }
 
+const SHOPPING_SMART_ALIAS_RULES = [
+  { pattern: /\bpomidor(y|ow)?\b/g, replacement: "pomidor" },
+  { pattern: /\bogorek(i|ow)?\b/g, replacement: "ogorek" },
+  { pattern: /\bpapryki?\b/g, replacement: "papryka" },
+  { pattern: /\bcebule?\b/g, replacement: "cebula" },
+  { pattern: /\bziemniak(i|ow)?\b/g, replacement: "ziemniak" },
+  { pattern: /\bjablk(a|o|iem|ach)?\b/g, replacement: "jablko" },
+  { pattern: /\bbanan(y|ow)?\b/g, replacement: "banan" },
+  { pattern: /\bjaja\b/g, replacement: "jajka" }
+];
+
+function normalizeIngredientName(rawName) {
+  const base = stripShoppingSlashAlternatives(String(rawName || "").trim());
+  let s = normalizeShoppingText(base).replace(/\s+/g, " ").trim();
+  if (!s) return s;
+
+  // Keep these products distinct (smart-default no-merge guard).
+  if (s.includes("jogurt grecki")) return "jogurt grecki";
+  if (s.includes("jogurt naturalny")) return "jogurt naturalny";
+  if (s.includes("ser feta")) return "ser feta";
+  if (s.includes("mozzarella")) return "ser mozzarella";
+
+  for (const rule of SHOPPING_SMART_ALIAS_RULES) {
+    s = s.replace(rule.pattern, rule.replacement);
+  }
+  return s.replace(/\s+/g, " ").trim();
+}
+
+function normalizeIngredientUnit(unit) {
+  const u = String(unit || "").trim().toLowerCase();
+  if (!u) return null;
+  if (u === "szt." || u === "szt") return "szt";
+  if (u === "kg" || u === "g") return u;
+  if (u === "l" || u === "ml") return u;
+  return u;
+}
+
+function normalizeIngredientAmount(amount, unit) {
+  const u = normalizeIngredientUnit(unit);
+  const n = Number(amount);
+  if (!Number.isFinite(n) || !u) return { amount: null, unit: u };
+  if (u === "kg") return { amount: n * 1000, unit: "g" };
+  if (u === "l") return { amount: n * 1000, unit: "ml" };
+  return { amount: n, unit: u };
+}
+
 /** Warianty „A / B” w nazwie → pierwsza opcja (np. szynka z kurczaka / indyka). */
 function stripShoppingSlashAlternatives(name) {
   const t = String(name || "").trim();
@@ -2109,8 +2155,7 @@ function stripShoppingSlashAlternatives(name) {
 
 /** Wspólny klucz przy sumowaniu tego samego produktu pod różnymi opisami. */
 function canonicalMergeIngredientName(rawName) {
-  const base = stripShoppingSlashAlternatives(String(rawName || "").trim());
-  let s = normalizeShoppingText(base).replace(/\s+/g, " ").trim();
+  let s = normalizeIngredientName(rawName);
   if (!s) return s;
 
   if (/\bszynka\s+z\s+kurczaka\b/.test(s) || /\bszynka\s+kurczaka\b/.test(s)) return "szynka z kurczaka";
@@ -2140,28 +2185,31 @@ function parseShoppingQuantity(line) {
   const t = String(line || "").trim();
   let m = t.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s+(szt)\.?$/i);
   if (m) {
+    const normalized = normalizeIngredientAmount(parseFloat(m[2].replace(",", ".")), "szt");
     return {
       name: m[1].trim(),
-      amount: parseFloat(m[2].replace(",", ".")),
-      unit: "szt",
+      amount: normalized.amount,
+      unit: normalized.unit,
       count: 1
     };
   }
   m = t.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s+(g|kg|ml|l)\b$/i);
   if (m) {
+    const normalized = normalizeIngredientAmount(parseFloat(m[2].replace(",", ".")), m[3]);
     return {
       name: m[1].trim(),
-      amount: parseFloat(m[2].replace(",", ".")),
-      unit: m[3].toLowerCase(),
+      amount: normalized.amount,
+      unit: normalized.unit,
       count: 1
     };
   }
   m = t.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)(g|kg|ml|l)\b$/i);
   if (m) {
+    const normalized = normalizeIngredientAmount(parseFloat(m[2].replace(",", ".")), m[3]);
     return {
       name: m[1].trim(),
-      amount: parseFloat(m[2].replace(",", ".")),
-      unit: m[3].toLowerCase(),
+      amount: normalized.amount,
+      unit: normalized.unit,
       count: 1
     };
   }
@@ -2177,12 +2225,13 @@ function mergeShoppingIngredientLines(lines) {
     const mergeName = canonicalMergeIngredientName(p.name);
     const key = p.amount != null && p.unit
       ? `${mergeName}|${p.unit}`
-      : `txt:${canonicalMergeIngredientName(line)}`;
+      : `txt:${mergeName}`;
 
     const prev = map.get(key);
     if (!prev) {
       map.set(key, {
         name: p.name,
+        canonical: mergeName,
         amount: p.amount,
         unit: p.unit,
         count: p.count || 1
@@ -2233,8 +2282,16 @@ function formatMergedShoppingLine(v) {
     numStr = Number.isInteger(n) || Math.abs(n - Math.round(n)) < 1e-6 ? String(Math.round(n)) : String(n).replace(",", ".").replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
   }
   const extraBare = v.extraBare ? ` (+${v.extraBare}× bez podanej masy)` : "";
-  if (v.unit === "szt") return `${v.name} ${numStr} szt${extraBare}`;
-  return `${v.name} ${numStr}${v.unit}${extraBare}`;
+  const displayName = v.name || v.canonical || "";
+  if (v.unit === "szt") return `${displayName} ${numStr} szt${extraBare}`;
+  return `${displayName} ${numStr}${v.unit}${extraBare}`;
+}
+
+function shoppingLineSortKey(line) {
+  const parsed = parseShoppingQuantity(line);
+  const canonical = canonicalMergeIngredientName(parsed.name || line);
+  const unit = normalizeIngredientUnit(parsed.unit || "txt") || "txt";
+  return `${canonical}|${unit}`;
 }
 
 function categorizeShoppingIngredient(line) {
@@ -2267,9 +2324,11 @@ function formatShoppingListByCategoryHtml(title, mergedLines) {
     const items = groups.get(catTitle);
     if (!items || !items.length) continue;
     chunks.push(`<div class="shopping-cat"><strong>${escapeHtml(catTitle)}</strong></div>`);
-    [...items].sort((a, b) => a.localeCompare(b, "pl", { sensitivity: "base" })).forEach((item) => {
+    [...items]
+      .sort((a, b) => shoppingLineSortKey(a).localeCompare(shoppingLineSortKey(b), "pl", { sensitivity: "base" }))
+      .forEach((item) => {
       chunks.push(`<div class="shopping-line">- ${escapeHtml(item)}</div>`);
-    });
+      });
   }
   return chunks.join("");
 }
