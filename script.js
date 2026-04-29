@@ -2406,44 +2406,44 @@ async function autoFillFullPlan() {
   const slotOrder = ["meal2", "meal1", "meal3", "snack"];
   const state = getPlannerState();
 
-  for (let week = 1; week <= 4; week++) {
-    for (let day = 1; day <= 7; day++) {
-      const key = `${activePlannerMonth}-${String((week - 1) * 7 + day).padStart(2, "0")}`;
-      const row = { meal1: "", meal2: "", meal3: "", snack: "" };
-      let remaining = target;
+  const baseDate = parseIsoDateLocal(plannerDateKey()) || new Date();
+  for (let idx = 0; idx < 28; idx++) {
+    const date = new Date(baseDate);
+    date.setDate(baseDate.getDate() + idx);
+    const key = toIsoDateLocal(date);
+    const row = { meal1: "", meal2: "", meal3: "", snack: "" };
+    let remaining = target;
 
-      for (let si = 0; si < slotOrder.length; si++) {
-        const slotId = slotOrder[si];
-        const slotsLeft = slotOrder.length - si;
-        const pool = recipesAllowedForSlot(slotId);
-        if (!pool.length) {
-          row[slotId] = "";
-          continue;
-        }
-        const ideal = Math.max(80, remaining / slotsLeft);
-        const id = pickRecipeForSlotGreedy(slotId, ideal, usage);
-        if (!id) {
-          row[slotId] = "";
-          continue;
-        }
-        row[slotId] = id;
-        remaining -= Number(recipesById[id]?.kcal) || 0;
-        usage[id] = (usage[id] || 0) + 1;
+    for (let si = 0; si < slotOrder.length; si++) {
+      const slotId = slotOrder[si];
+      const slotsLeft = slotOrder.length - si;
+      const pool = recipesAllowedForSlot(slotId);
+      if (!pool.length) {
+        row[slotId] = "";
+        continue;
       }
-
-      state[key] = row;
+      const ideal = Math.max(80, remaining / slotsLeft);
+      const id = pickRecipeForSlotGreedy(slotId, ideal, usage);
+      if (!id) {
+        row[slotId] = "";
+        continue;
+      }
+      row[slotId] = id;
+      remaining -= Number(recipesById[id]?.kcal) || 0;
+      usage[id] = (usage[id] || 0) + 1;
     }
+
+    state[key] = row;
   }
 
   setPlannerState(state);
 
   const saves = [];
-  for (let week = 1; week <= 4; week++) {
-    for (let day = 1; day <= 7; day++) {
-      const key = `${activePlannerMonth}-${String((week - 1) * 7 + day).padStart(2, "0")}`;
-      const dateIso = `${activePlannerMonth}-${String((week - 1) * 7 + day).padStart(2, "0")}`;
-      saves.push(savePlannerEntryRemote(dateIso, state[key]));
-    }
+  for (let idx = 0; idx < 28; idx++) {
+    const date = new Date(baseDate);
+    date.setDate(baseDate.getDate() + idx);
+    const dateIso = toIsoDateLocal(date);
+    saves.push(savePlannerEntryRemote(dateIso, state[dateIso]));
   }
   try {
     await Promise.all(saves);
@@ -2453,7 +2453,7 @@ async function autoFillFullPlan() {
 
   renderPlanner();
   renderPlanTables();
-  alert("Ułożono plan na 28 dni (kategorie slotów + zbliżenie do celu kcal, z rotacją przepisów).");
+  alert("Ułożono plan na 28 kolejnych dni od wybranej daty (kategorie slotów + zbliżenie do celu kcal, z rotacją przepisów).");
 }
 
 function getFocusRecipeForAssistant() {
